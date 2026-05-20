@@ -1,0 +1,6 @@
+[submodule "src/lmnt"]
+	path = src/lmnt
+	url = git@github.com:tang0226/lmnt
+[submodule "src/dap"]
+	path = src/dap
+	url = git@github.com:tang0226/dap
