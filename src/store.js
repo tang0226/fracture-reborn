@@ -3,6 +3,7 @@
 
 import { shallowArrayEqual } from './utils.js';
 import { fractals, paramsDataFor, defaultParamsValuesFor } from './fractals.js';
+import { createStore } from './lmnt.js';
 
 const viewport = {
   state: {
@@ -99,7 +100,7 @@ const iteration = {
   state: {
     maxIter: 200,
     escapeRadius: 256,
-    smoothing: false,
+    smoothing: true,
     orbitTraps: [],
   },
   reducer: (state, action) => {
@@ -129,9 +130,9 @@ const iteration = {
 
 
 
-export {
+export const store = createStore({
   viewport,
   canvas,
   fractal,
   iteration,
-};
+});

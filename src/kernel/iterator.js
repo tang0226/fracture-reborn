@@ -10,8 +10,7 @@ import {
 } from './fragments/float64.js';
 
 
-
-export function createIterator(settings) {
+export function createFloat64Iterator(settings) {
   const { formula, iterStyle, expType, params } = settings.fractal;
   const { maxIter, escapeRadius, smoothing, orbitTraps } = settings.iteration;
 
@@ -27,12 +26,12 @@ export function createIterator(settings) {
         ${orbitTrapFragment({ orbitTraps, allTrapsSquare })}
         if (zRe*zRe + zIm*zIm > ${escapeRadius ** 2}) {
           buf[idx] = ${smoothingFragment({ smoothing, expType, params, maxIter })};
-          buf[idx+1] = ${allTrapsSquare ? `Math.sqrt(_otDist)` : `_otDist`};
+          buf[idx+1] = ${allTrapsSquare ? `Math.sqrt(ot)` : `ot`};
           return;
         }
       }
       buf[idx] = ${maxIter};
-      buf[idx+1] = ${allTrapsSquare ? `Math.sqrt(_otDist)` : `_otDist`};
+      buf[idx+1] = ${allTrapsSquare ? `Math.sqrt(ot)` : `ot`};
     }
   `;
 
