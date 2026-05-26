@@ -5,6 +5,51 @@ import { shallowArrayEqual } from './utils.js';
 import { fractals, paramsDataFor, defaultParamsValuesFor } from './fractals.js';
 import { createStore } from './lmnt.js';
 
+const engine = {
+  state: {
+    processor: 'cpu',
+    useArbitraryPrecision: false,
+    usePerturbation: false,
+  },
+  reducer: (state, action) => {
+    const { type, payload } = action;
+    switch (type) {
+      case 'engine/setProcessor':
+        if (payload !== 'cpu' && payload !== 'gpu') throw new Error('Invalid processor type');
+        return { ...state, processor: payload };
+      case 'engine/setArbitraryPrecision':
+        return { ...state, useArbitraryPrecision: payload };
+      case 'engine/setPerturbation':
+        return { ...state, usePerturbation: payload };
+    }
+    return state;
+  },
+};
+
+const render = {
+  state: {
+    workerCount: navigator.hardwareConcurrency - 2,
+    tileSize: 32,
+    antiAliasing: false,
+    progressive: true,
+    strides: [16, 8, 4, 1],
+  },
+  reducer: (state, action) => {
+    const { type, payload } = action;
+    switch (type) {
+      case 'render/setWorkerCount':
+        return { ...state, workerCount: payload };
+      case 'render/setTileSize':
+        return { ...state, tileSize: payload };
+      case 'render/setProgressive':
+        return { ...state, progressive: payload };
+      case 'render/setStrides':
+        return { ...state, strides: payload };
+    }
+    return state;
+  },
+};
+
 const viewport = {
   state: {
     center: {
@@ -12,6 +57,7 @@ const viewport = {
       im: 0,
     },
     size: 2,
+    flipYAxis: false,
   },
   reducer: (state, action) => {
     const { type, payload } = action;
@@ -20,6 +66,8 @@ const viewport = {
         return { center: payload.center, size: payload.size };
       case 'viewport/setCenter':
         return { ...state, center: payload };
+      case 'viewport/setFlipYAxis':
+        return { ...state, flipYAxis: payload };
       case 'viewport/zoom': // Zoom on center
         return { ...state, size: state.size / payload };
       case 'viewport/zoomOnPoint':
@@ -75,14 +123,15 @@ const fractal = {
   reducer: (state, action) => {
     const { type, payload } = action;
     switch (type) {
-      case 'fractal/setFormula':
-        let formula = fractals.formulas[payload];
+      case 'fractal/setFormula': {
+        const formula = fractals.formulas[payload];
         return {
           ...state,
           formula: payload,
           iterStyle: formula.defaultIterStyle,
           expType: formula.defaultExpType,
         };
+      }
       case 'fractal/setIterStyle':
         return { ...state, iterStyle: payload};
       case 'fractal/setExpType':
@@ -131,6 +180,8 @@ const iteration = {
 
 
 export const store = createStore({
+  engine,
+  render,
   viewport,
   canvas,
   fractal,

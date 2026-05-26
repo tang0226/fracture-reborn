@@ -2,6 +2,7 @@ import { createStore } from './lmnt.js';
 import { V, L, mount } from './lmnt.js';
 import { AppRoot } from './components/AppRoot.js';
 import { store } from './store.js';
+import { render } from './render.js';
 
 mount(L(V(AppRoot)), document.body);
 
