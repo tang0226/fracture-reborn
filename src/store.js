@@ -29,10 +29,10 @@ const engine = {
 const render = {
   state: {
     workerCount: navigator.hardwareConcurrency - 2,
-    tileSize: 32,
+    tileSize: 64,
     antiAliasing: false,
     progressive: true,
-    strides: [16, 8, 4, 1],
+    strides: [16, 8, 2, 1],
   },
   reducer: (state, action) => {
     const { type, payload } = action;
@@ -41,6 +41,8 @@ const render = {
         return { ...state, workerCount: payload };
       case 'render/setTileSize':
         return { ...state, tileSize: payload };
+      case 'render/setAntiAliasing':
+        return { ...state, antiAliasing: payload };
       case 'render/setProgressive':
         return { ...state, progressive: payload };
       case 'render/setStrides':
@@ -56,7 +58,7 @@ const viewport = {
       re: -0.5,
       im: 0,
     },
-    size: 2,
+    size: 4,
     flipYAxis: false,
   },
   reducer: (state, action) => {
@@ -176,8 +178,88 @@ const iteration = {
                  && shallowArrayEqual(a.orbitTraps, b.orbitTraps),
 };
 
+const coloring = {
+  state: {
+    exterior: {
+      method: 'smoothIter',  // 'smoothIter' | 'orbitTrap' | 'solid'
+      smoothIter: {
+        stops: [
+          { pos: 0, r: 0, g: 0, b: 0 },
+          { pos: 1/11, r: 255, g: 0, b: 0 },
+          { pos: 2/11, r: 0, g: 0, b: 0 },
+          { pos: 3/11, r: 255, g: 255, b: 0 },
+          { pos: 4/11, r: 0, g: 255, b: 0},
+          { pos: 5/11, r: 0, g: 0, b: 0 },
+          { pos: 6/11, r: 0, g: 255, b: 255 },
+          { pos: 7/11, r: 0, g: 0, b: 0 },
+          { pos: 8/11, r: 0, g: 0, b: 255 },
+          { pos: 9/11, r: 0, g: 0, b: 0},
+          { pos: 10/11, r: 255, g: 0, b: 255 },
+          { pos: 1, r: 0, g: 0, b: 0 },
+        ],
+        period: 100,
+        offset: 0,
+        logScale: false,
+      },
+      solid: { r: 255, g: 255, b: 255 },
+    },
+    interior: {
+      method: 'solid', // 'solid' | 'orbitTrap',
+      solid: { r: 0, g: 0, b: 0 },
+    },
+    orbitTrap: {
+      stops: [
+        { pos: 0, r: 0, g: 0, b: 128 },
+        { pos: 0.2, r: 255, g: 255, b: 255 },
+        { pos: 0.4, r: 255, g: 255, b: 0 },
+        { pos: 0.6, r: 255, g: 0, b: 0 },
+        { pos: 0.8, r: 0, g: 0, b: 0 },
+        { pos: 1, r: 0, g: 0, b: 128 },
+      ],
+      scale: 1,
+      offset: 0,
+      logScale: true,
+    },
+  },
+  reducer: (state, action) => {
+    const { type, payload } = action;
+    switch (type) {
+      case 'coloring/setExteriorMethod':
+        return { ...state, exterior: { ...state.exterior, method: payload } };
+      case 'coloring/setExteriorSolid':
+        return { ...state, exterior: { ...state.exterior, solid: payload } };
+      case 'coloring/setSmoothIter':
+        return { ...state, exterior: { ...state.exterior, smoothIter: { ...state.exterior.smoothIter, ...payload } } };
+      case 'coloring/setSmoothIterStops':
+        return { ...state, exterior: { ...state.exterior, smoothIter: { ...state.exterior.smoothIter, stops: payload } } };
+      case 'coloring/setInteriorMethod':
+        return { ...state, interior: { ...state.interior, method: payload } };
+      case 'coloring/setInteriorSolid':
+        return { ...state, interior: { ...state.interior, solid: payload } };
+      case 'coloring/setOrbitTrap':
+        return { ...state, orbitTrap: { ...state.orbitTrap, ...payload } };
+      case 'coloring/setOrbitTrapStops':
+        return { ...state, orbitTrap: { ...state.orbitTrap, stops: payload } };
+    }
+    return state;
+  },
+};
 
+function normalizePalette(p) {
+  const { stops, lut } = p;
+  if (stops[0].pos > 0) {
+    stops.unshift({ ...stops[stops.length - 1], pos: 0 });
+  }
+  if (stops[stops.length - 1].pos < 1) {
+    stops.push({ ...stops[0], pos: 1 });
+  }
+  return p;
+}
 
+export function needsArbitraryPrecision(viewport, engine) {
+  const threshold = engine.processor === 'gpu' ? 1e-6 : 1e-13;
+  return viewport.size < threshold;
+}
 
 export const store = createStore({
   engine,
@@ -186,4 +268,5 @@ export const store = createStore({
   canvas,
   fractal,
   iteration,
+  coloring,
 });

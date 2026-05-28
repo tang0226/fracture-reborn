@@ -1,4 +1,5 @@
 import { needsArbitraryPrecision } from './store.js';
+import { buildColoringSettings } from './coloring.js';
 
 // Master worker spawns and maintains other workers
 
@@ -24,6 +25,7 @@ export function render(settings) {
     canvas,
     fractal,
     iteration,
+    coloring,
   } = settings;
 
   if (needsArbitraryPrecision(viewport, engine) && engine.usePerturbation) {
@@ -64,6 +66,10 @@ async function renderCPU(settings) {
   postAll({
     type: 'settings',
     payload: settings,
+  });
+  colorizeWorker.postMessage({
+    type: 'settings',
+    payload: { ...settings, coloring: buildColoringSettings(settings.coloring) },
   });
 
   const strides = settings.render.progressive ? settings.render.strides : [1];

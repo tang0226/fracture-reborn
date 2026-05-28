@@ -60,16 +60,16 @@ function setupFloat64(settings) {
     const pxSize = viewport.size / imgDataW;
 
     const yDir = viewport.flipYAxis ? 1 : -1;
-
     const l = tile.w * tile.h * 2;
     if (buf.length !== l) { buf = new Float64Array(l); }
 
     let i = 0;
     for (let y = tile.y; y < tile.y + tile.h; y++) {
       for (let x = tile.x; x < tile.x + tile.w; x++) {
-        iterate(buf, i,
+        iterate(
           viewport.center.re + (x - halfImgDataW) * pxSize,
           viewport.center.im + yDir * (y - halfImgDataH) * pxSize,
+          buf, i,
         );
         i += 2;
       }

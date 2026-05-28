@@ -47,6 +47,7 @@ export function ControlsCanvas() {
 
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = '#FFF4';
+      ctx.fillRect(x, y, w, h);
       ctx.strokeStyle = '#000';
       ctx.strokeRect(x, y, w, h);
       ctx.fillStyle = '#FFF';
