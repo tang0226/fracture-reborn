@@ -4,6 +4,7 @@
 import { shallowArrayEqual } from './utils.js';
 import { fractals, paramsDataFor, defaultParamsValuesFor } from './fractals.js';
 import { createStore } from './lmnt.js';
+import { palettes } from './palettes.js';
 
 const engine = {
   state: {
@@ -32,7 +33,7 @@ const render = {
     tileSize: 64,
     antiAliasing: false,
     progressive: true,
-    strides: [16, 8, 2, 1],
+    strides: [16, 8, 4, 1],
   },
   reducer: (state, action) => {
     const { type, payload } = action;
@@ -183,20 +184,7 @@ const coloring = {
     exterior: {
       method: 'smoothIter',  // 'smoothIter' | 'orbitTrap' | 'solid'
       smoothIter: {
-        stops: [
-          { pos: 0, r: 0, g: 0, b: 0 },
-          { pos: 1/11, r: 255, g: 0, b: 0 },
-          { pos: 2/11, r: 0, g: 0, b: 0 },
-          { pos: 3/11, r: 255, g: 255, b: 0 },
-          { pos: 4/11, r: 0, g: 255, b: 0},
-          { pos: 5/11, r: 0, g: 0, b: 0 },
-          { pos: 6/11, r: 0, g: 255, b: 255 },
-          { pos: 7/11, r: 0, g: 0, b: 0 },
-          { pos: 8/11, r: 0, g: 0, b: 255 },
-          { pos: 9/11, r: 0, g: 0, b: 0},
-          { pos: 10/11, r: 255, g: 0, b: 255 },
-          { pos: 1, r: 0, g: 0, b: 0 },
-        ],
+        stops: palettes.rainbowBlack,
         period: 100,
         offset: 0,
         logScale: false,
@@ -208,14 +196,7 @@ const coloring = {
       solid: { r: 0, g: 0, b: 0 },
     },
     orbitTrap: {
-      stops: [
-        { pos: 0, r: 0, g: 0, b: 128 },
-        { pos: 0.2, r: 255, g: 255, b: 255 },
-        { pos: 0.4, r: 255, g: 255, b: 0 },
-        { pos: 0.6, r: 255, g: 0, b: 0 },
-        { pos: 0.8, r: 0, g: 0, b: 0 },
-        { pos: 1, r: 0, g: 0, b: 128 },
-      ],
+      stops: palettes.orbitTrap1,
       scale: 1,
       offset: 0,
       logScale: true,
