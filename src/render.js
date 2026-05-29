@@ -16,9 +16,11 @@ function createIterateWorker() {
   return new Worker(new URL('./workers/iterate.worker.js', import.meta.url), { type: 'module' });
 }
 
-let renderInProgress = false;
+let renderID = 0;
 
 export function render(settings) {
+  renderID++;
+
   const {
     engine,
     viewport,
@@ -35,18 +37,18 @@ export function render(settings) {
   if (settings.engine.processor === 'gpu') {
     // renderGPU
   } else {
-    renderCPU(settings);
+    renderCPU(settings, renderID);
   }
 }
 
-async function renderCPU(settings) {
+async function renderCPU(settings, id) {
+
   const { render } = settings;
-  if (renderInProgress) {
-    // Terminate and recreate all workers
-    for (let i = 0; i < workerPool.length; i++) {
-      workerPool[i].terminate();
-      workerPool[i] = createIterateWorker();
-    }
+
+  // Terminate and recreate all workers to cancel any in-flight iteration
+  for (let i = 0; i < workerPool.length; i++) {
+    workerPool[i].terminate();
+    workerPool[i] = createIterateWorker();
   }
   // Add / remove workers to match the current workerCount setting
   if (render.workerCount >= workerPool.length) {
@@ -60,8 +62,6 @@ async function renderCPU(settings) {
     }
   }
 
-  renderInProgress = true;
-
   // Send settings to all workers
   postAll({
     type: 'settings',
@@ -69,16 +69,15 @@ async function renderCPU(settings) {
   });
   colorizeWorker.postMessage({
     type: 'settings',
-    payload: { ...settings, coloring: buildColoringSettings(settings.coloring) },
+    payload: { ...settings, coloring: buildColoringSettings(settings.coloring), renderID: id },
   });
 
   const strides = settings.render.progressive ? settings.render.strides : [1];
   for (const stride of strides) {
+    if (id !== renderID) return;
     const tiles = buildTileQueue(settings, stride);
-    await dispatchPass(tiles, settings);
+    await dispatchPass(tiles, settings, id);
   }
-
-  //renderInProgress = false; // set to false only once all coloring is done
 }
 
 // Builds a queue of canvas regions for workers to iterate
@@ -128,7 +127,7 @@ function sendNextTile(worker, tiles) {
 }
 
 // Send queued tiles to workers until all tiles have been rendered
-function dispatchPass(tiles, settings) {
+function dispatchPass(tiles, settings, id) {
   return new Promise(resolve => {
     let remaining = tiles.length;
 
@@ -137,7 +136,7 @@ function dispatchPass(tiles, settings) {
         if (data.type === 'tileDone') {
           colorizeWorker.postMessage({
             type: 'colorize',
-            payload: data.payload,
+            payload: { ...data.payload, renderID: id },
           });
           remaining--;
           if (remaining === 0) resolve();

@@ -7,7 +7,8 @@ let settings,
   iteration,
   coloring,
   intColorizer,
-  extColorizer;
+  extColorizer,
+  currentRenderID;
 
 function buildLutColorizer(lut, getT) {
   return (colorBuf, ci, smoothIter, dist) => {
@@ -78,11 +79,13 @@ self.onmessage = (e) => {
         iteration,
         coloring,
       } = settings);
+      currentRenderID = payload.renderID;
       extColorizer = buildExteriorColorizer(coloring.exterior, coloring.orbitTrap, iteration.maxIter);
       intColorizer = buildInteriorColorizer(coloring.interior, coloring.orbitTrap);
       break;
     }
     case 'colorize': {
+      if (payload.renderID !== currentRenderID) break;
       const { buf, tile } = payload;
 
       const colorBuf = new Uint8ClampedArray(tile.w * tile.h * 4);

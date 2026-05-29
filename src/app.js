@@ -4,6 +4,7 @@ import { AppRoot } from './components/AppRoot.js';
 import { store } from './store.js';
 import { render } from './render.js';
 import { setTheme } from './theme.js';
+import { addShortcut } from './input.js';
 
 setTheme('light');
 
@@ -69,4 +70,6 @@ store.dispatch({ type: 'coloring/setOrbitTrapStops', payload: palettes.bw });
 //store.dispatch({ type: 'render/setWorkerCount', payload: 4 });
 
 console.log(store.getState());
+addShortcut({ ctrl: true, key: 'Enter' }, () => render(store.getState()));
+
 render(store.getState());

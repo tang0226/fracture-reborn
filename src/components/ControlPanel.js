@@ -1,5 +1,7 @@
 import { V, useState, useStyle, bindStore } from "../lmnt.js";
 import { store } from "../store.js";
+import { render } from "../render.js";
+import { LogSlider } from "./LogSlider.js";
 
 export function ControlPanel() {
 
@@ -19,6 +21,7 @@ export function ControlPanel() {
       top: 0;
       height: 100%;
       width: 400px;
+      padding: 50px 20px 20px 20px;
       background: var(--panel-bg);
       transition: transform 0.25s ease;
       pointer-events: auto;
@@ -47,12 +50,39 @@ export function ControlPanel() {
     & .toggle-btn:active {
       background: var(--panel-surface-active);
     }
+    & .render-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: var(--panel-surface);
+      border: 1px solid var(--panel-border);
+      color: var(--panel-text);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: var(--panel-radius);
+    }
+    & .render-btn:hover {
+      background: var(--panel-surface-hover);
+    }
+    & .render-btn:active {
+      background: var(--panel-surface-active);
+    }
   `);
 
   return () => {
     const isOpen = open.get();
     return V('div', { class: isOpen ? '' : 'closed' },
-      V('div', { class: 'panel' }),
+      V('div', { class: 'panel' },
+        V('button', { class: 'render-btn', onClick: () => render(store.getState()) }, 'Render'),
+        V(LogSlider, {
+          label: 'Max iterations',
+          value: store.getState().iteration.maxIter,
+          min: 1, max: 100000, step: 1,
+          onChange: v => store.dispatch({ type: 'iteration/setMaxIter', payload: v }),
+        }),
+      ),
       V('button', { class: 'toggle-btn', onClick: () => open.set(!isOpen) },
         isOpen ? '«' : '☰'
       ),
