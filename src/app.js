@@ -70,6 +70,8 @@ store.dispatch({ type: 'coloring/setOrbitTrapStops', payload: palettes.bw });
 //store.dispatch({ type: 'render/setWorkerCount', payload: 4 });
 
 console.log(store.getState());
+
+
 addShortcut({ ctrl: true, key: 'Enter' }, () => render(store.getState()));
 
 render(store.getState());

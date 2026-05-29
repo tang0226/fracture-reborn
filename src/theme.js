@@ -4,6 +4,8 @@ const themes = {
     --panel-surface:       #ffffff12;
     --panel-surface-hover: #ffffff22;
     --panel-surface-active:#ffffff32;
+    --panel-btn-hover:     #1e1e2a;
+    --panel-btn-active:    #28283a;
     --panel-border:        #ffffff22;
     --panel-text:          #ffffff;
     --panel-text-muted:    #aaaaaa;
@@ -12,8 +14,10 @@ const themes = {
   light: `
     --panel-bg:            #ffffffdd;
     --panel-surface:       #00000010;
-    --panel-surface-hover: #00000018;
-    --panel-surface-active:#00000028;
+    --panel-surface-hover: #00000020;
+    --panel-surface-active:#00000035;
+    --panel-btn-hover:     #e4e4e8ee;
+    --panel-btn-active:    #d0d0d4ee;
     --panel-border:        #00000022;
     --panel-text:          #111111;
     --panel-text-muted:    #555555;
@@ -31,7 +35,10 @@ function inject() {
 
 function buildCSS(name) {
   return `
-    :root { ${themes[name]} }
+    :root {
+      ${themes[name]}
+      --text-base: 14px;
+    }
     * { box-sizing: border-box; }
     body { margin: 0; overflow: hidden; font-family: system-ui, sans-serif; }
   `;

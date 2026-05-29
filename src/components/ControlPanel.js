@@ -2,6 +2,7 @@ import { V, useState, useStyle, bindStore } from "../lmnt.js";
 import { store } from "../store.js";
 import { render } from "../render.js";
 import { LogSlider } from "./LogSlider.js";
+import { CheckboxInput } from "./CheckboxInput.js";
 
 export function ControlPanel() {
 
@@ -21,7 +22,7 @@ export function ControlPanel() {
       top: 0;
       height: 100%;
       width: 400px;
-      padding: 50px 20px 20px 20px;
+      padding: 60px 20px 20px 20px;
       background: var(--panel-bg);
       transition: transform 0.25s ease;
       pointer-events: auto;
@@ -45,10 +46,10 @@ export function ControlPanel() {
       text-align: center;
     }
     & .toggle-btn:hover {
-      background: var(--panel-surface-hover);
+      background: var(--panel-btn-hover);
     }
     & .toggle-btn:active {
-      background: var(--panel-surface-active);
+      background: var(--panel-btn-active);
     }
     & .render-btn {
       position: absolute;
@@ -76,12 +77,18 @@ export function ControlPanel() {
     return V('div', { class: isOpen ? '' : 'closed' },
       V('div', { class: 'panel' },
         V('button', { class: 'render-btn', onClick: () => render(store.getState()) }, 'Render'),
+        
         V(LogSlider, {
           label: 'Max iterations',
           value: store.getState().iteration.maxIter,
           min: 1, max: 100000, step: 1,
           onChange: v => store.dispatch({ type: 'iteration/setMaxIter', payload: v }),
         }),
+
+        V(CheckboxInput, {
+          label: 'Smoothing',
+          checked: store.getState().iteration.smoothing,
+          onChange: (checked) => store.dispatch({ type: 'iteration/setSmoothing', payload: checked }) }),
       ),
       V('button', { class: 'toggle-btn', onClick: () => open.set(!isOpen) },
         isOpen ? '«' : '☰'

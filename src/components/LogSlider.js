@@ -28,7 +28,7 @@ export function LogSlider({ min, max, step = 1 }) {
     }
     & .label {
       color: var(--panel-text-muted);
-      font-size: 12px;
+      font-size: var(--text-base);
       white-space: nowrap;
     }
     & .readout {
@@ -38,7 +38,7 @@ export function LogSlider({ min, max, step = 1 }) {
       color: var(--panel-text);
       text-align: right;
       width: 80px;
-      font-size: 13px;
+      font-size: var(--text-base);
       padding: 2px 0;
     }
     & .readout:focus {

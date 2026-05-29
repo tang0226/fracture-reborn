@@ -152,7 +152,7 @@ const iteration = {
   state: {
     maxIter: 200,
     escapeRadius: 256,
-    smoothing: true,
+    smoothing: false,
     orbitTraps: [],
   },
   reducer: (state, action) => {
