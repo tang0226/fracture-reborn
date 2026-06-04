@@ -13,10 +13,12 @@ export function CollapsibleSection({}) {
       align-items: center;
       gap: 6px;
       cursor: pointer;
-      padding: 6px 0;
+      padding: 8px 0;
       color: var(--panel-text);
-      font-size: var(--text-base);
+      font-size: 15px;
       font-weight: 600;
+      letter-spacing: 0.02em;
+      border-bottom: 1px solid var(--panel-border);
       user-select: none;
     }
     & .arrow {
@@ -31,7 +33,7 @@ export function CollapsibleSection({}) {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      padding-bottom: 8px;
+      padding: 10px 0 10px 0;
     }
     & .body.closed {
       display: none;
