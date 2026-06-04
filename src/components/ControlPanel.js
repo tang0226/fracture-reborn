@@ -23,6 +23,7 @@ export function ControlPanel() {
   const open = useState(true);
   bindStore(store, { select: s => s.iteration });
   bindStore(store, { select: s => s.coloring });
+  bindStore(store, { select: s => s.render });
 
   useStyle(`
     & {
@@ -118,7 +119,7 @@ export function ControlPanel() {
 
   return () => {
     const isOpen = open.get();
-    const { iteration, coloring } = store.getState();
+    const { iteration, coloring, render: renderCfg } = store.getState();
     const { exterior, interior, orbitTrap } = coloring;
 
     return V('div', { class: isOpen ? '' : 'closed' },
@@ -266,6 +267,40 @@ export function ControlPanel() {
             onChange: c => store.dispatch({ type: 'coloring/setOrbitTrap', payload: { logScale: c } }),
           }) : null,
 
+        ),
+
+        V(CollapsibleSection, { title: 'Render' },
+          V(Slider, {
+            label: 'Workers',
+            value: renderCfg.workerCount,
+            min: 1, max: navigator.hardwareConcurrency, step: 1,
+            onChange: v => store.dispatch({ type: 'render/setWorkerCount', payload: v }),
+          }),
+          V(SelectInput, {
+            label: 'Tile size',
+            value: String(renderCfg.tileSize),
+            options: [16, 32, 64, 128, 256].map(n => ({ value: String(n), label: String(n) })),
+            onChange: v => store.dispatch({ type: 'render/setTileSize', payload: +v }),
+          }),
+          V(CheckboxInput, {
+            label: 'Anti-aliasing',
+            checked: renderCfg.antiAliasing !== false,
+            onChange: checked => store.dispatch({
+              type: 'render/setAntiAliasing',
+              payload: checked ? 2 : false,
+            }),
+          }),
+          renderCfg.antiAliasing !== false ? V(Slider, {
+            label: 'AA samples',
+            value: renderCfg.antiAliasing,
+            min: 2, max: 8, step: 1,
+            onChange: v => store.dispatch({ type: 'render/setAntiAliasing', payload: v }),
+          }) : null,
+          V(CheckboxInput, {
+            label: 'Progressive resolution',
+            checked: renderCfg.progressive,
+            onChange: checked => store.dispatch({ type: 'render/setProgressive', payload: checked }),
+          }),
         ),
       ),
       V('button', { class: 'toggle-btn', onClick: () => open.set(!isOpen) },
