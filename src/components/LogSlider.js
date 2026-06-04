@@ -6,12 +6,12 @@ function valueToT(value, min, max) {
   ));
 }
 
-function tToValue(t, min, max, step) {
-  const raw = min * (max / min) ** (t / 1000);
-  return Math.round(raw / step) * step;
+function tToValue(t, min, max) {
+  return min * (max / min) ** (t / 1000);
 }
 
 export function LogSlider({ min, max, step = 1 }) {
+  const kbT = { t: null }; // persists across renders; tracks keyboard t independently of rounded value
 
   useStyle(`
     & {
@@ -40,10 +40,15 @@ export function LogSlider({ min, max, step = 1 }) {
       width: 80px;
       font-size: var(--text-base);
       padding: 2px 0;
+      -moz-appearance: textfield;
     }
     & .readout:focus {
       outline: none;
       border-bottom-color: var(--panel-text);
+    }
+    & .readout::-webkit-inner-spin-button,
+    & .readout::-webkit-outer-spin-button {
+      -webkit-appearance: none;
     }
     & .slider {
       width: 100%;
@@ -52,7 +57,7 @@ export function LogSlider({ min, max, step = 1 }) {
     }
   `);
 
-  return ({ label, value, min, max, step = 1, onChange }) => {
+  return ({ label, value, min, max, onChange }) => {
     const t = valueToT(value, min, max);
 
     return V('div', {},
@@ -61,17 +66,38 @@ export function LogSlider({ min, max, step = 1 }) {
         V('input', {
           class: 'readout',
           type: 'number',
-          value,
+          step: 'any',
+          value: +value.toFixed(3),
           onChange: e => {
-            const v = Math.max(1, +e.target.value || 1);
-            onChange(Math.round(v / step) * step);
+            const v = +e.target.value;
+            if (!isNaN(v)) onChange(Math.max(min, v));
           },
+          onKeydown: e => {
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            e.preventDefault();
+            const dir = e.key === 'ArrowUp' ? 1 : -1;
+            if (kbT.t === null || valueToT(value, min, max) !== Math.round(kbT.t)) {
+              kbT.t = valueToT(value, min, max);
+            }
+            kbT.t = Math.max(0, Math.min(1000, kbT.t + dir * (e.shiftKey ? 50 : 10)));
+            onChange(tToValue(kbT.t, min, max));
+          },
+          onWheel: e => {
+            e.preventDefault();
+            const dir = e.deltaY < 0 ? 1 : -1;
+            if (kbT.t === null || valueToT(value, min, max) !== Math.round(kbT.t)) {
+              kbT.t = valueToT(value, min, max);
+            }
+            kbT.t = Math.max(0, Math.min(1000, kbT.t + dir * 5));
+            onChange(tToValue(kbT.t, min, max));
+          },
+          onBlur: () => { kbT.t = null; },
         }),
       ),
       V('input', {
         class: 'slider',
         type: 'range', min: 0, max: 1000, value: t,
-        onInput: e => onChange(tToValue(+e.target.value, min, max, step)),
+        onInput: e => { kbT.t = null; onChange(tToValue(+e.target.value, min, max)); },
       }),
     );
   };
