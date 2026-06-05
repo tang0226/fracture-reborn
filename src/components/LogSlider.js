@@ -57,7 +57,8 @@ export function LogSlider({ min, max, step = 1 }) {
     }
   `);
 
-  return ({ label, value, min, max, onChange }) => {
+  return ({ label, value, min, max, integer = false, onChange }) => {
+    const snap = v => integer ? Math.round(v) : v;
     const t = valueToT(value, min, max);
 
     return V('div', {},
@@ -67,10 +68,10 @@ export function LogSlider({ min, max, step = 1 }) {
           class: 'readout',
           type: 'number',
           step: 'any',
-          value: +value.toFixed(3),
+          value: integer ? Math.round(value) : +value.toFixed(3),
           onChange: e => {
             const v = +e.target.value;
-            if (!isNaN(v)) onChange(Math.max(min, v));
+            if (!isNaN(v)) onChange(snap(Math.max(min, v)));
           },
           onKeydown: e => {
             if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
@@ -80,7 +81,7 @@ export function LogSlider({ min, max, step = 1 }) {
               kbT.t = valueToT(value, min, max);
             }
             kbT.t = Math.max(0, Math.min(1000, kbT.t + dir * (e.shiftKey ? 50 : 10)));
-            onChange(tToValue(kbT.t, min, max));
+            onChange(snap(tToValue(kbT.t, min, max)));
           },
           onWheel: e => {
             e.preventDefault();
@@ -89,7 +90,7 @@ export function LogSlider({ min, max, step = 1 }) {
               kbT.t = valueToT(value, min, max);
             }
             kbT.t = Math.max(0, Math.min(1000, kbT.t + dir * 5));
-            onChange(tToValue(kbT.t, min, max));
+            onChange(snap(tToValue(kbT.t, min, max)));
           },
           onBlur: () => { kbT.t = null; },
         }),
@@ -97,7 +98,7 @@ export function LogSlider({ min, max, step = 1 }) {
       V('input', {
         class: 'slider',
         type: 'range', min: 0, max: 1000, value: t,
-        onInput: e => { kbT.t = null; onChange(tToValue(+e.target.value, min, max)); },
+        onInput: e => { kbT.t = null; onChange(snap(tToValue(+e.target.value, min, max))); },
       }),
     );
   };

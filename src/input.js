@@ -22,6 +22,10 @@ document.addEventListener('keyup', e => {
   keys.delete(e.key);
 });
 
+document.addEventListener('blur', e => {
+  keys.clear();
+});
+
 // addShortcut({ ctrl, shift, alt, key }, handler)
 export function addShortcut(combo, handler) {
   shortcuts.push({ ...combo, handler });

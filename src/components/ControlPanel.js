@@ -39,6 +39,7 @@ export function ControlPanel() {
       height: 100%;
       width: 400px;
       padding: 60px 20px 20px 20px;
+      overflow-y: auto;
       background: var(--panel-bg);
       transition: transform 0.25s ease;
       pointer-events: auto;
@@ -67,10 +68,8 @@ export function ControlPanel() {
     & .toggle-btn:active {
       background: var(--panel-btn-active);
     }
-    & .render-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
+    & .standalone-btn {
+      align-self: flex-start;
       background: var(--panel-surface);
       border: 1px solid var(--panel-border);
       color: var(--panel-text);
@@ -80,11 +79,16 @@ export function ControlPanel() {
       padding: 5px 14px;
       border-radius: var(--panel-radius);
     }
-    & .render-btn:hover {
+    & .standalone-btn:hover {
       background: var(--panel-surface-hover);
     }
-    & .render-btn:active {
+    & .standalone-btn:active {
       background: var(--panel-surface-active);
+    }
+    & .render-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
     }
     & .solid-row {
       display: flex;
@@ -124,13 +128,47 @@ export function ControlPanel() {
 
     return V('div', { class: isOpen ? '' : 'closed' },
       V('div', { class: 'panel' },
-        V('button', { class: 'render-btn', onClick: () => render(store.getState()) }, 'Render'),
+        V('button', { class: 'render-btn standalone-btn', onClick: () => render(store.getState()) }, 'Render'),
+
+        V(CollapsibleSection, { title: 'Zoom' },
+          V(SelectInput, {
+            label: 'Click zoom factor',
+            value: '4',
+            options: [
+              { value: '1.5', label: '1.5' },
+              { value: '2', label: '2' },
+              { value: '4', label: '4' },
+              { value: '8', label: '8' },
+              { value: '16', label: '16' },
+            ],
+            onChange: v => store.dispatch({ type: 'viewport/setClickZoomFactor', payload: Number(v) }),
+          }),
+          V('button', {
+            class: 'standalone-btn',
+            onClick: () => {
+              let state = store.getState();
+              store.dispatch({
+                type: 'viewport/resetZoom',
+                payload: {
+                  formulaKey: state.fractal.formula,
+                  params: state.fractal.params,
+                }
+              });
+              render(store.getState());
+            },
+          }, 'Reset zoom'),
+          V(CheckboxInput, {
+            label: 'Flip y-axis',
+            checked: store.getState().viewport.flipYAxis,
+            onChange: v => store.dispatch({ type: 'viewport/setFlipYAxis', payload: v })
+          })
+        ),
 
         V(CollapsibleSection, { title: 'Iteration' },
           V(LogSlider, {
             label: 'Max iterations',
             value: iteration.maxIter,
-            min: 1, max: 100000, step: 1,
+            min: 1, max: 100000, integer: true,
             onChange: v => store.dispatch({ type: 'iteration/setMaxIter', payload: v }),
           }),
           V(CheckboxInput, {

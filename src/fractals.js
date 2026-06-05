@@ -84,4 +84,23 @@ function defaultParamsValuesFor(formula, iterStyle, expType) {
   return Object.fromEntries(Object.entries(params).map(([k, v]) => [k, v.default]));
 }
 
-export { fractals, paramsDataFor, defaultParamsValuesFor };
+function defaultViewportFor(formulaKey, params = {}) {
+  if (formulaKey === 'mandelbrot' && params.e === 2) {
+    return {
+      center: { re: -0.5, im: 0 },
+      size: 4,
+    };
+  }
+  if (formulaKey === 'burningShip' && params.e === 2) {
+    return {
+      center: { re: -0.4, im: -0.65 },
+      size: 4.5,
+    };
+  }
+  return {
+    center: { re: 0, im: 0 },
+    size: 4,
+  };
+}
+
+export { fractals, paramsDataFor, defaultParamsValuesFor, defaultViewportFor };

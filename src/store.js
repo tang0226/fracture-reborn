@@ -2,7 +2,7 @@
 // Default structure should be constant, but some time down the line it can load from localStorage, cookies, or account data
 
 import { shallowArrayEqual } from './utils.js';
-import { fractals, paramsDataFor, defaultParamsValuesFor } from './fractals.js';
+import { fractals, paramsDataFor, defaultParamsValuesFor, defaultViewportFor } from './fractals.js';
 import { createStore } from './lmnt.js';
 import { palettes } from './palettes.js';
 
@@ -31,7 +31,7 @@ const render = {
   state: {
     workerCount: navigator.hardwareConcurrency - 2,
     tileSize: 64,
-    antiAliasing: false,
+    antiAliasing: 4,
     progressive: true,
     strides: [16, 8, 4, 1],
   },
@@ -56,44 +56,95 @@ const render = {
 const viewport = {
   state: {
     center: {
-      re: -0.5,
+      re: 0,
       im: 0,
     },
     size: 4,
-    flipYAxis: false,
+    flipYAxis: true,
+    clickZoomFactor: 4,
   },
   reducer: (state, action) => {
     const { type, payload } = action;
     switch (type) {
       case 'viewport/setViewport':
-        return { center: payload.center, size: payload.size };
-      case 'viewport/setCenter':
-        return { ...state, center: payload };
+        return { ...state, center: payload.center, size: payload.size };
       case 'viewport/setFlipYAxis':
         return { ...state, flipYAxis: payload };
-      case 'viewport/zoom': // Zoom on center
-        return { ...state, size: state.size / payload };
-      case 'viewport/zoomOnPoint':
-        if (payload.dapCtx) { // Using arbitrary precision?
-          // distance from center to focus point
-          let dRe = dapCtx.sub(payload.point.re, state.center.re);
-          let dIm = dapCtx.sub(payload.point.im, state.center.im);
+      case 'viewport/zoomInOnPointFromClick': {
+        const { width, height, reCoeff, imCoeff } = payload;
+        if (payload.dapCtx) {
+          // AP
+        } else {
+          const reDiff = reCoeff * state.size;
+          const imDiff = imCoeff * state.size * height / width * (state.flipYAxis ? 1 : -1);
           return {
+            ...state,
             center: {
-              re: dapCtx.sub(payload.point.re, dapCtx.div(dRe, payload.zoom)),
-              im: dapCtx.sub(payload.point.im, dapCtx.div(dIm, payload.zoom)),
+              re: state.center.re + reDiff - reDiff / state.clickZoomFactor,
+              im: state.center.im + imDiff - imDiff / state.clickZoomFactor,
             },
-            size: state.size / payload.zoom,
-          };
+            size: state.size / state.clickZoomFactor,
+          }
+        }
+        break;
+      }
+      case 'viewport/zoomOutFromPointFromClick': {
+        const { width, height, reCoeff, imCoeff } = payload;
+        if (payload.dapCtx) {
+          // AP
+        } else {
+          const reDiff = reCoeff * state.size;
+          const imDiff = imCoeff * state.size * height / width * (state.flipYAxis ? 1 : -1);
+          return {
+            ...state,
+            center: {
+              re: state.center.re + reDiff - reDiff * state.clickZoomFactor,
+              im: state.center.im + imDiff - imDiff * state.clickZoomFactor,
+            },
+            size: state.size * state.clickZoomFactor,
+          }
+        }
+        break;
+      }
+      case 'viewport/zoomFromDrag': {
+        const { width, height, reCoeff, imCoeff, sizeCoeff }
+          = payload;
+        if (payload.dapCtx) {
+          // AP
         } else {
           return {
+            ...state,
             center: {
-              re: payload.point.re - (payload.point.re - state.center.re) / payload.zoom,
-              im: payload.point.im - (payload.point.im - state.center.im) / payload.zoom,
+              re: state.center.re + reCoeff * state.size,
+              im: state.center.im + imCoeff * state.size * height / width * (state.flipYAxis ? 1 : -1),
             },
-            size: state.size / payload.zoom,
-          };
+            size: state.size * sizeCoeff,
+          }
         }
+        break;
+      }
+      case 'viewport/centerFromClick': {
+        const { width, height, reCoeff, imCoeff } = payload;
+        if (payload.dapCtx) {
+          // AP
+        } else {
+          return {
+            ...state,
+            center: {
+              re: state.center.re + reCoeff * state.size,
+              im: state.center.im + imCoeff * state.size * height / width * (state.flipYAxis ? 1 : -1),
+            },
+            size: state.size,
+          }
+        }
+      }
+      case 'viewport/setClickZoomFactor':
+        return { ...state, clickZoomFactor: payload };
+      case 'viewport/resetZoom':
+        return {
+          ...state,
+          ...defaultViewportFor(payload.formulaKey, payload.params),
+        };
     }
     return state;
   },
@@ -152,7 +203,7 @@ const iteration = {
   state: {
     maxIter: 200,
     escapeRadius: 256,
-    smoothing: false,
+    smoothing: true,
     orbitTraps: [],
   },
   reducer: (state, action) => {
@@ -184,7 +235,7 @@ const coloring = {
     exterior: {
       method: 'smoothIter',  // 'smoothIter' | 'orbitTrap' | 'solid'
       smoothIter: {
-        stops: palettes.rainbowBlack,
+        stops: palettes.earthAndSky,
         period: 100,
         offset: 0,
         logScale: false,

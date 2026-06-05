@@ -41,25 +41,26 @@ export function Slider({}) {
     }
   `);
 
-  return ({ label, value, min, max, step = 1, onChange }) => {
+  return ({ label, value, min, max, step = 1, integer = false, onChange }) => {
+    const snap = v => integer ? Math.round(v) : v;
     return V('div', {},
       V('div', { class: 'top-row' },
         V('span', { class: 'label' }, label),
         V('input', {
           class: 'readout',
           type: 'number',
-          value: +value.toFixed(3),
-          step,
+          value: integer ? Math.round(value) : +value.toFixed(3),
+          step: integer ? 1 : step,
           onChange: e => {
             const v = +e.target.value;
-            if (!isNaN(v)) onChange(Math.max(min, v));
+            if (!isNaN(v)) onChange(snap(Math.max(min, v)));
           },
         }),
       ),
       V('input', {
         class: 'slider',
-        type: 'range', min, max, step, value,
-        onInput: e => onChange(+e.target.value),
+        type: 'range', min, max, step: integer ? 1 : step, value,
+        onInput: e => onChange(snap(+e.target.value)),
       }),
     );
   };

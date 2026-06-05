@@ -1,4 +1,7 @@
-import { V, useStyle, useEffect } from "../lmnt.js";
+import { V, useStyle, useEffect } from '../lmnt.js';
+import { store } from '../store.js';
+import { render } from '../render.js';
+import { keys } from '../input.js';
 
 export function ControlsCanvas() {
   let ctx, width, height;
@@ -19,12 +22,58 @@ export function ControlsCanvas() {
 
   const onMouseUp = (e) => {
     if (mouseDown) {
-      let x = e.offsetX;
-      let y = e.offsetY;
-      if (dragStartX !== x || dragStartY !== y) {
-        console.log(`drag ${dragStartX} ${dragStartY} - ${e.offsetX} ${e.offsetY}`)
+      let dx = Math.abs(e.offsetX - dragStartX);
+      let dy = Math.abs(e.offsetY - dragStartY);
+      if (dx && dy) {
+        store.dispatch({
+          type: 'viewport/zoomFromDrag',
+          payload: {
+            width, height,
+            reCoeff: dragStartX / width - 0.5,
+            imCoeff: dragStartY / height - 0.5,
+            sizeCoeff: Math.max(
+              2 * dx / width,
+              2 * dy / height,
+            ),
+          }
+        });
+        render(store.getState());
       } else {
-        console.log(`click ${e.offsetX} ${e.offsetY}`);
+        // Ctrl + click to center
+        if (keys.has('Control')) {
+          store.dispatch({
+            type: 'viewport/centerFromClick',
+            payload: {
+              width, height,
+              reCoeff: e.offsetX / width - 0.5,
+              imCoeff: e.offsetY / height - 0.5,
+            },
+          });
+          render(store.getState());
+        } else if (keys.has('Shift')) {
+          // Shift + Click to zoom out
+          store.dispatch({
+            type: 'viewport/zoomOutFromPointFromClick',
+            payload: {
+              width, height,
+              reCoeff: e.offsetX / width - 0.5,
+              imCoeff: e.offsetY / height - 0.5,
+            },
+          });
+          render(store.getState());
+        } else {
+          // click to zoom
+          store.dispatch({
+            type: 'viewport/zoomInOnPointFromClick',
+            payload: {
+              width, height,
+              reCoeff: e.offsetX / width - 0.5,
+              imCoeff: e.offsetY / height - 0.5,
+            },
+          });
+          render(store.getState());
+        }
+        
       }
     }
     ctx.clearRect(0, 0, width, height);
@@ -40,18 +89,21 @@ export function ControlsCanvas() {
 
   const onMouseMove = (e) => {
     if (mouseDown) {
-      let x = Math.min(dragStartX, e.offsetX);
-      let y = Math.min(dragStartY, e.offsetY);
-      let w = Math.abs(dragStartX - e.offsetX);
-      let h = Math.abs(dragStartY - e.offsetY);
+      let dx = Math.abs(dragStartX - e.offsetX);
+      let dy = Math.abs(dragStartY - e.offsetY);
+
+      let rx = dragStartX - dx,
+          ry = dragStartY - dy,
+          rw = 2 * dx,
+          rh = 2 * dy;
 
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = '#FFF4';
-      ctx.fillRect(x, y, w, h);
+      ctx.fillRect(rx, ry, rw, rh);
       ctx.strokeStyle = '#000';
-      ctx.strokeRect(x, y, w, h);
+      ctx.strokeRect(rx, ry, rw, rh);
       ctx.fillStyle = '#FFF';
-      ctx.strokeRect(Math.round(x + w / 2) - 1, Math.round(y + h / 2) - 1, 3, 3);
+      ctx.strokeRect(dragStartX - 1, dragStartY - 1, 3, 3);
     }
   }
 
