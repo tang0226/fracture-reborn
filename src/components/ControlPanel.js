@@ -21,6 +21,13 @@ function hexToRgb(hex) {
 export function ControlPanel() {
 
   const open = useState(true);
+  bindStore(store, {
+    select: s => s.viewport,
+    shouldUpdate: (next, prev) => {
+      return next.flipYAxis !== prev.flipYAxis
+          || next.clickZoomFactor !== prev.clickZoomFactor;
+    }
+  });
   bindStore(store, { select: s => s.iteration });
   bindStore(store, { select: s => s.coloring });
   bindStore(store, { select: s => s.render });
