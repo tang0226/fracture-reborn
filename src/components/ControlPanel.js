@@ -325,11 +325,11 @@ export function ControlPanel() {
             checked: renderCfg.antiAliasing !== false,
             onChange: checked => store.dispatch({
               type: 'render/setAntiAliasing',
-              payload: checked ? 2 : false,
+              payload: checked ? 4 : false,
             }),
           }),
           renderCfg.antiAliasing !== false ? V(Slider, {
-            label: 'AA samples',
+            label: 'AA degree (NxN)',
             value: renderCfg.antiAliasing,
             min: 2, max: 8, step: 1,
             onChange: v => store.dispatch({ type: 'render/setAntiAliasing', payload: v }),
