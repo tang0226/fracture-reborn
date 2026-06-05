@@ -1,9 +1,11 @@
-import { V, useStyle, useEffect } from '../lmnt.js';
+import { V, useStyle, useEffect, bindStore } from '../lmnt.js';
 import { store } from '../store.js';
 import { render } from '../render.js';
 import { keys } from '../input.js';
 
 export function ControlsCanvas() {
+  bindStore(store, { select: s => s.canvas });
+
   let ctx, width, height;
   useEffect((self) => {
     ctx = self.el.getContext('2d');
@@ -117,10 +119,13 @@ export function ControlsCanvas() {
   `);
   
   return () => {
+    const { width: cw, height: ch } = store.getState().canvas;
+    width = cw;
+    height = ch;
     return V('canvas', {
       id: 'controls-canvas',
-      width: window.innerWidth,
-      height: window.innerHeight,
+      width: cw,
+      height: ch,
       onMouseDown,
       onMouseUp,
       onMouseOut,

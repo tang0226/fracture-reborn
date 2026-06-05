@@ -1,4 +1,5 @@
 import { needsArbitraryPrecision } from './store.js';
+import { store } from './store.js';
 import { buildColoringSettings } from './coloring.js';
 
 // Master worker spawns and maintains other workers
@@ -21,10 +22,13 @@ let renderID = 0;
 export function render(settings) {
   renderID++;
 
+  const canvas = { width: window.innerWidth, height: window.innerHeight };
+  store.dispatch({ type: 'canvas/setDim', payload: canvas });
+  settings = { ...settings, canvas };
+
   const {
     engine,
     viewport,
-    canvas,
     fractal,
     iteration,
     coloring,

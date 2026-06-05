@@ -1,8 +1,10 @@
-import { V, useEffect, useStyle } from '../lmnt.js';
+import { V, useEffect, useStyle, bindStore } from '../lmnt.js';
 import { store } from '../store.js';
 import { colorizeWorker } from '../render.js';
 
 export function RenderCanvas() {
+
+  bindStore(store, { select: s => s.canvas });
 
   let ctx, offscreen, offCtx;
   useEffect((self) => {
@@ -38,10 +40,11 @@ export function RenderCanvas() {
   };
 
   return () => {
+    const { width, height } = store.getState().canvas;
     return V('canvas', {
       id: 'render-canvas',
-      width: window.innerWidth,
-      height: window.innerHeight,
+      width,
+      height,
     });
   };
 }
