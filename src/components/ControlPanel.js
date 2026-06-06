@@ -6,6 +6,7 @@ import { ZoomSection } from './ZoomSection.js';
 import { IterationSection } from './IterationSection.js';
 import { ColoringSection } from './ColoringSection.js';
 import { RenderSection } from './RenderSection.js';
+import { ExportSection } from './ExportSection.js';
 
 export function ControlPanel() {
 
@@ -87,6 +88,7 @@ export function ControlPanel() {
         V(IterationSection),
         V(ColoringSection),
         V(RenderSection),
+        V(ExportSection),
       ),
       V('button', { class: 'toggle-btn', onClick: () => open.set(!isOpen) },
         isOpen ? '«' : '☰'
