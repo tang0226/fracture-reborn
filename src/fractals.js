@@ -99,7 +99,7 @@ function defaultViewportFor(formulaKey, params = {}) {
   }
   return {
     center: { re: 0, im: 0 },
-    size: 4,
+    size: 5,
   };
 }
 

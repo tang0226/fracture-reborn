@@ -184,6 +184,7 @@ const fractal = {
           formula: payload,
           iterStyle: formula.defaultIterStyle,
           expType: formula.defaultExpType,
+          params: defaultParamsValuesFor(formula),
         };
       }
       case 'fractal/setIterStyle':

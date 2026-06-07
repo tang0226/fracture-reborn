@@ -3,6 +3,7 @@ import { store } from "../store.js";
 import { render } from "../render.js";
 
 import { ZoomSection } from './ZoomSection.js';
+import { FractalSection } from './FractalSection.js';
 import { IterationSection } from './IterationSection.js';
 import { ColoringSection } from './ColoringSection.js';
 import { RenderSection } from './RenderSection.js';
@@ -85,6 +86,7 @@ export function ControlPanel() {
       V('div', { class: 'panel' },
         V('button', { class: 'render-btn standalone-btn', onClick: () => render(store.getState()) }, 'Render'),
         V(ZoomSection),
+        V(FractalSection),
         V(IterationSection),
         V(ColoringSection),
         V(RenderSection),
