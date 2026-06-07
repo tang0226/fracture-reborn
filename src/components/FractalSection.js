@@ -1,5 +1,5 @@
 import { V, bindStore } from "../lmnt.js";
-import { store } from "../store.js";
+import { store, DEFAULT_MAX_ITER, DEFAULT_SMOOTH_ITER_PERIOD, DEFAULT_SMOOTH_ITER_PERIOD_LOG } from "../store.js";
 import { render } from "../render.js";
 import { fractals } from "../fractals.js";
 
@@ -15,6 +15,9 @@ function resetZoomAndRender() {
     type: 'viewport/resetZoom',
     payload: { formulaKey: fractal.formula, params: fractal.params },
   });
+  store.dispatch({ type: 'iteration/setMaxIter', payload: DEFAULT_MAX_ITER });
+  const logScale = store.getState().coloring.exterior.smoothIter.logScale;
+  store.dispatch({ type: 'coloring/setSmoothIter', payload: { period: logScale ? DEFAULT_SMOOTH_ITER_PERIOD_LOG : DEFAULT_SMOOTH_ITER_PERIOD } });
   render(store.getState());
 }
 

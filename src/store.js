@@ -200,9 +200,13 @@ const fractal = {
   },
 };
 
+export const DEFAULT_MAX_ITER = 200;
+export const DEFAULT_SMOOTH_ITER_PERIOD = 100;
+export const DEFAULT_SMOOTH_ITER_PERIOD_LOG = 1;
+
 const iteration = {
   state: {
-    maxIter: 200,
+    maxIter: DEFAULT_MAX_ITER,
     escapeRadius: 256,
     smoothing: true,
     orbitTraps: [],
@@ -237,7 +241,7 @@ const coloring = {
       method: 'smoothIter',  // 'smoothIter' | 'orbitTrap' | 'solid'
       smoothIter: {
         stops: palettes.earthAndSky,
-        period: 100,
+        period: DEFAULT_SMOOTH_ITER_PERIOD,
         offset: 0,
         logScale: false,
       },
