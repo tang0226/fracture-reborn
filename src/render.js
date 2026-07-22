@@ -18,6 +18,8 @@ function createIterateWorker() {
 }
 
 let renderID = 0;
+let renderStartTime = 0;
+let colorizeListener = null;
 
 export function render(settings) {
   renderID++;
@@ -77,9 +79,28 @@ async function renderCPU(settings, id) {
   });
 
   const strides = settings.render.progressive ? settings.render.strides : [1];
-  for (const stride of strides) {
+  const tileSets = strides.map(s => buildTileQueue(settings, s));
+  const tilesTotal = tileSets.reduce((sum, t) => sum + t.length, 0);
+  renderStartTime = performance.now();
+  store.dispatch({ type: 'renderStatus/start', payload: { tilesTotal } });
+
+  // Listen for colorize completion — fires after RenderCanvas's onmessage property
+  if (colorizeListener) colorizeWorker.removeEventListener('message', colorizeListener);
+  let colorizedDone = 0;
+  colorizeListener = ({ data }) => {
+    if (data.type === 'tileDone') {
+      colorizedDone++;
+      if (colorizedDone === tilesTotal) {
+        store.dispatch({ type: 'renderStatus/done', payload: { elapsed: performance.now() - renderStartTime } });
+        colorizeWorker.removeEventListener('message', colorizeListener);
+        colorizeListener = null;
+      }
+    }
+  };
+  colorizeWorker.addEventListener('message', colorizeListener);
+
+  for (const tiles of tileSets) {
     if (id !== renderID) return;
-    const tiles = buildTileQueue(settings, stride);
     await dispatchPass(tiles, settings, id);
   }
 }
@@ -143,6 +164,7 @@ function dispatchPass(tiles, settings, id) {
             payload: { ...data.payload, renderID: id },
           });
           remaining--;
+          store.dispatch({ type: 'renderStatus/tileDone', payload: { elapsed: performance.now() - renderStartTime } });
           if (remaining === 0) resolve();
           else if (tiles.length > 0) sendNextTile(worker, tiles);
         }

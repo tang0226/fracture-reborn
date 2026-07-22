@@ -293,6 +293,26 @@ function normalizePalette(p) {
   return p;
 }
 
+const renderStatus = {
+  state: {
+    phase: 'idle',
+    tilesDone: 0,
+    tilesTotal: 0,
+    elapsed: 0,
+  },
+  reducer: (state, action) => {
+    switch (action.type) {
+      case 'renderStatus/start':
+        return { phase: 'rendering', tilesDone: 0, tilesTotal: action.payload.tilesTotal, elapsed: 0 };
+      case 'renderStatus/tileDone':
+        return { ...state, tilesDone: state.tilesDone + 1, elapsed: action.payload.elapsed };
+      case 'renderStatus/done':
+        return { ...state, phase: 'done', tilesDone: state.tilesTotal, elapsed: action.payload.elapsed };
+    }
+    return state;
+  },
+};
+
 export function needsArbitraryPrecision(viewport, engine) {
   const threshold = engine.processor === 'gpu' ? 1e-6 : 1e-13;
   return viewport.size < threshold;
@@ -306,4 +326,5 @@ export const store = createStore({
   fractal,
   iteration,
   coloring,
+  renderStatus,
 });
