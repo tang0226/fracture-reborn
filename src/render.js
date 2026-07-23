@@ -87,11 +87,13 @@ async function renderCPU(settings, id) {
   // Listen for colorize completion — fires after RenderCanvas's onmessage property
   if (colorizeListener) colorizeWorker.removeEventListener('message', colorizeListener);
   let colorizedDone = 0;
+  const startTime = renderStartTime;
   colorizeListener = ({ data }) => {
     if (data.type === 'tileDone') {
       colorizedDone++;
+      store.dispatch({ type: 'renderStatus/tileDone', payload: { elapsed: performance.now() - startTime } });
       if (colorizedDone === tilesTotal) {
-        store.dispatch({ type: 'renderStatus/done', payload: { elapsed: performance.now() - renderStartTime } });
+        store.dispatch({ type: 'renderStatus/done', payload: { elapsed: performance.now() - startTime } });
         colorizeWorker.removeEventListener('message', colorizeListener);
         colorizeListener = null;
       }
@@ -164,7 +166,6 @@ function dispatchPass(tiles, settings, id) {
             payload: { ...data.payload, renderID: id },
           });
           remaining--;
-          store.dispatch({ type: 'renderStatus/tileDone', payload: { elapsed: performance.now() - renderStartTime } });
           if (remaining === 0) resolve();
           else if (tiles.length > 0) sendNextTile(worker, tiles);
         }
