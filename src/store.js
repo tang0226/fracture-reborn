@@ -303,7 +303,7 @@ const renderStatus = {
   reducer: (state, action) => {
     switch (action.type) {
       case 'renderStatus/start':
-        return { phase: 'rendering', tilesDone: 0, tilesTotal: action.payload.tilesTotal, elapsed: 0 };
+        return { phase: 'rendering', tilesDone: 0, tilesTotal: action.payload.tilesTotal, elapsed: 0, fromCache: action.payload.fromCache ?? false };
       case 'renderStatus/tileDone':
         return { ...state, tilesDone: state.tilesDone + 1, elapsed: action.payload.elapsed };
       case 'renderStatus/done':
