@@ -1,12 +1,23 @@
 import { V, useStyle } from "../lmnt.js";
 
-function valueToT(value, min, max) {
+function valueToT(value, min, max, bipolar = false) {
+  if (bipolar) {
+    if (value === 0) return 500;
+    const sign = value > 0 ? 1 : -1;
+    const halfT = Math.round(Math.log(Math.abs(value) / min) / Math.log(max / min) * 500);
+    return Math.max(0, Math.min(1000, 500 + sign * halfT));
+  }
   return Math.max(0, Math.min(1000,
     Math.round(Math.log(value / min) / Math.log(max / min) * 1000)
   ));
 }
 
-function tToValue(t, min, max) {
+function tToValue(t, min, max, bipolar = false) {
+  if (bipolar) {
+    if (t === 500) return 0;
+    const sign = t > 500 ? 1 : -1;
+    return sign * min * (max / min) ** (Math.abs(t - 500) / 500);
+  }
   return min * (max / min) ** (t / 1000);
 }
 
@@ -57,9 +68,9 @@ export function LogSlider({ min, max, step = 1 }) {
     }
   `);
 
-  return ({ label, value, min, max, integer = false, onChange }) => {
+  return ({ label, value, min, max, integer = false, bipolar = false, onChange }) => {
     const snap = v => integer ? Math.round(v) : v;
-    const t = valueToT(value, min, max);
+    const t = valueToT(value, min, max, bipolar);
 
     return V('div', {},
       V('div', { class: 'top-row' },
@@ -71,26 +82,31 @@ export function LogSlider({ min, max, step = 1 }) {
           value: integer ? Math.round(value) : +value.toFixed(3),
           onChange: e => {
             const v = +e.target.value;
-            if (!isNaN(v)) onChange(snap(Math.max(min, v)));
+            if (!isNaN(v)) {
+              const clamped = bipolar
+                ? Math.max(-max, Math.min(max, v))
+                : Math.max(min, v);
+              onChange(snap(clamped));
+            }
           },
           onKeydown: e => {
             if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
             e.preventDefault();
             const dir = e.key === 'ArrowUp' ? 1 : -1;
-            if (kbT.t === null || valueToT(value, min, max) !== Math.round(kbT.t)) {
-              kbT.t = valueToT(value, min, max);
+            if (kbT.t === null || valueToT(value, min, max, bipolar) !== Math.round(kbT.t)) {
+              kbT.t = valueToT(value, min, max, bipolar);
             }
             kbT.t = Math.max(0, Math.min(1000, kbT.t + dir * (e.shiftKey ? 50 : 10)));
-            onChange(snap(tToValue(kbT.t, min, max)));
+            onChange(snap(tToValue(kbT.t, min, max, bipolar)));
           },
           onWheel: e => {
             e.preventDefault();
             const dir = e.deltaY < 0 ? 1 : -1;
-            if (kbT.t === null || valueToT(value, min, max) !== Math.round(kbT.t)) {
-              kbT.t = valueToT(value, min, max);
+            if (kbT.t === null || valueToT(value, min, max, bipolar) !== Math.round(kbT.t)) {
+              kbT.t = valueToT(value, min, max, bipolar);
             }
             kbT.t = Math.max(0, Math.min(1000, kbT.t + dir * 5));
-            onChange(snap(tToValue(kbT.t, min, max)));
+            onChange(snap(tToValue(kbT.t, min, max, bipolar)));
           },
           onBlur: () => { kbT.t = null; },
         }),
@@ -98,7 +114,7 @@ export function LogSlider({ min, max, step = 1 }) {
       V('input', {
         class: 'slider',
         type: 'range', min: 0, max: 1000, value: t,
-        onInput: e => { kbT.t = null; onChange(snap(tToValue(+e.target.value, min, max))); },
+        onInput: e => { kbT.t = null; onChange(snap(tToValue(+e.target.value, min, max, bipolar))); },
       }),
     );
   };
