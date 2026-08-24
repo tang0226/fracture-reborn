@@ -1,4 +1,5 @@
 import { V, useState, useStyle } from "../lmnt.js";
+import { palettes, PRESETS } from "../palettes.js";
 
 function stopsToCSS(stops) {
   return [...stops]
@@ -133,6 +134,20 @@ export function PaletteEditor({}) {
     & .action-btn:active {
       background: var(--panel-surface-active);
     }
+    & .preset-select {
+      width: 100%;
+      background: var(--panel-surface);
+      border: 1px solid var(--panel-border);
+      color: var(--panel-text);
+      font-size: var(--text-base);
+      padding: 4px 6px;
+      border-radius: var(--panel-radius);
+      cursor: pointer;
+    }
+    & .preset-select:focus {
+      outline: none;
+      border-color: var(--panel-text);
+    }
   `);
 
   return ({ stops, onChange }) => {
@@ -143,6 +158,16 @@ export function PaletteEditor({}) {
     const selStop = sel >= 0 && sel < stops.length ? stops[sel] : null;
 
     return V('div', {},
+      V('select', {
+        class: 'preset-select',
+        onChange: e => {
+          const key = e.target.value;
+          if (key) onChange(palettes[key]);
+        },
+      },
+        V('option', { value: '', selected: true }, 'Preset…'),
+        ...PRESETS.map(p => V('option', { value: p.key, selected: false }, p.label)),
+      ),
       V('div', {
         class: 'bar',
         style: `background: linear-gradient(to right, ${stopsToCSS(stops)})`,
