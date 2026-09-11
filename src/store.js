@@ -5,12 +5,14 @@ import { shallowArrayEqual } from './utils.js';
 import { fractals, paramsDataFor, defaultParamsValuesFor, defaultViewportFor } from './fractals.js';
 import { createStore } from './lmnt.js';
 import { palettes } from './palettes.js';
+import { dapCtx, setDapPrecision } from './dap-ctx.js';
 
 const engine = {
   state: {
     processor: 'cpu',
     useArbitraryPrecision: false,
     usePerturbation: false,
+    dapPrecision: 32,
   },
   reducer: (state, action) => {
     const { type, payload } = action;
@@ -22,6 +24,9 @@ const engine = {
         return { ...state, useArbitraryPrecision: payload };
       case 'engine/setPerturbation':
         return { ...state, usePerturbation: payload };
+      case 'engine/setDapPrecision':
+        setDapPrecision(payload);
+        return { ...state, dapPrecision: payload };
     }
     return state;
   },
@@ -54,12 +59,11 @@ const render = {
 };
 
 const viewport = {
+  // center and size are always strings to support arbitrary-precision zoom.
+  // Float64 path parses them with parseFloat; DAP path parses them with dapCtx.n().
   state: {
-    center: {
-      re: 0,
-      im: 0,
-    },
-    size: 4,
+    center: { re: '0', im: '0' },
+    size: '4',
     flipYAxis: true,
     clickZoomFactor: 4,
   },
@@ -67,84 +71,131 @@ const viewport = {
     const { type, payload } = action;
     switch (type) {
       case 'viewport/setViewport':
-        return { ...state, center: payload.center, size: payload.size };
+        return {
+          ...state,
+          center: { re: String(payload.center.re), im: String(payload.center.im) },
+          size: String(payload.size),
+        };
       case 'viewport/setFlipYAxis':
         return { ...state, flipYAxis: payload };
       case 'viewport/zoomInOnPointFromClick': {
         const { width, height, reCoeff, imCoeff } = payload;
-        if (payload.dapCtx) {
-          // AP
-        } else {
-          const reDiff = reCoeff * state.size;
-          const imDiff = imCoeff * state.size * height / width * (state.flipYAxis ? 1 : -1);
+        const yFactor = height / width * (state.flipYAxis ? 1 : -1);
+        if (payload.useAP) {
+          const sz = dapCtx.n(state.size);
+          const cf = dapCtx.n(state.clickZoomFactor);
+          const reDiff = dapCtx.mul(dapCtx.n(reCoeff), sz);
+          const imDiff = dapCtx.mul(dapCtx.n(imCoeff * yFactor), sz);
           return {
             ...state,
             center: {
-              re: state.center.re + reDiff - reDiff / state.clickZoomFactor,
-              im: state.center.im + imDiff - imDiff / state.clickZoomFactor,
+              re: dapCtx.toString(dapCtx.add(dapCtx.n(state.center.re), dapCtx.sub(reDiff, dapCtx.div(reDiff, cf)))),
+              im: dapCtx.toString(dapCtx.add(dapCtx.n(state.center.im), dapCtx.sub(imDiff, dapCtx.div(imDiff, cf)))),
             },
-            size: state.size / state.clickZoomFactor,
-          }
+            size: dapCtx.toString(dapCtx.div(sz, cf)),
+          };
+        } else {
+          const cr = parseFloat(state.center.re), ci = parseFloat(state.center.im), sz = parseFloat(state.size);
+          const reDiff = reCoeff * sz;
+          const imDiff = imCoeff * sz * yFactor;
+          return {
+            ...state,
+            center: {
+              re: String(cr + reDiff - reDiff / state.clickZoomFactor),
+              im: String(ci + imDiff - imDiff / state.clickZoomFactor),
+            },
+            size: String(sz / state.clickZoomFactor),
+          };
         }
-        break;
       }
       case 'viewport/zoomOutFromPointFromClick': {
         const { width, height, reCoeff, imCoeff } = payload;
-        if (payload.dapCtx) {
-          // AP
-        } else {
-          const reDiff = reCoeff * state.size;
-          const imDiff = imCoeff * state.size * height / width * (state.flipYAxis ? 1 : -1);
+        const yFactor = height / width * (state.flipYAxis ? 1 : -1);
+        if (payload.useAP) {
+          const sz = dapCtx.n(state.size);
+          const cf = dapCtx.n(state.clickZoomFactor);
+          const reDiff = dapCtx.mul(dapCtx.n(reCoeff), sz);
+          const imDiff = dapCtx.mul(dapCtx.n(imCoeff * yFactor), sz);
           return {
             ...state,
             center: {
-              re: state.center.re + reDiff - reDiff * state.clickZoomFactor,
-              im: state.center.im + imDiff - imDiff * state.clickZoomFactor,
+              re: dapCtx.toString(dapCtx.add(dapCtx.n(state.center.re), dapCtx.sub(reDiff, dapCtx.mul(reDiff, cf)))),
+              im: dapCtx.toString(dapCtx.add(dapCtx.n(state.center.im), dapCtx.sub(imDiff, dapCtx.mul(imDiff, cf)))),
             },
-            size: state.size * state.clickZoomFactor,
-          }
+            size: dapCtx.toString(dapCtx.mul(sz, cf)),
+          };
+        } else {
+          const cr = parseFloat(state.center.re), ci = parseFloat(state.center.im), sz = parseFloat(state.size);
+          const reDiff = reCoeff * sz;
+          const imDiff = imCoeff * sz * yFactor;
+          return {
+            ...state,
+            center: {
+              re: String(cr + reDiff - reDiff * state.clickZoomFactor),
+              im: String(ci + imDiff - imDiff * state.clickZoomFactor),
+            },
+            size: String(sz * state.clickZoomFactor),
+          };
         }
-        break;
       }
       case 'viewport/zoomFromDrag': {
-        const { width, height, reCoeff, imCoeff, sizeCoeff }
-          = payload;
-        if (payload.dapCtx) {
-          // AP
-        } else {
+        const { width, height, reCoeff, imCoeff, sizeCoeff } = payload;
+        const yFactor = height / width * (state.flipYAxis ? 1 : -1);
+        if (payload.useAP) {
+          const sz = dapCtx.n(state.size);
           return {
             ...state,
             center: {
-              re: state.center.re + reCoeff * state.size,
-              im: state.center.im + imCoeff * state.size * height / width * (state.flipYAxis ? 1 : -1),
+              re: dapCtx.toString(dapCtx.add(dapCtx.n(state.center.re), dapCtx.mul(dapCtx.n(reCoeff), sz))),
+              im: dapCtx.toString(dapCtx.add(dapCtx.n(state.center.im), dapCtx.mul(dapCtx.n(imCoeff * yFactor), sz))),
             },
-            size: state.size * sizeCoeff,
-          }
+            size: dapCtx.toString(dapCtx.mul(sz, dapCtx.n(sizeCoeff))),
+          };
+        } else {
+          const cr = parseFloat(state.center.re), ci = parseFloat(state.center.im), sz = parseFloat(state.size);
+          return {
+            ...state,
+            center: {
+              re: String(cr + reCoeff * sz),
+              im: String(ci + imCoeff * sz * yFactor),
+            },
+            size: String(sz * sizeCoeff),
+          };
         }
-        break;
       }
       case 'viewport/centerFromClick': {
         const { width, height, reCoeff, imCoeff } = payload;
-        if (payload.dapCtx) {
-          // AP
-        } else {
+        const yFactor = height / width * (state.flipYAxis ? 1 : -1);
+        if (payload.useAP) {
+          const sz = dapCtx.n(state.size);
           return {
             ...state,
             center: {
-              re: state.center.re + reCoeff * state.size,
-              im: state.center.im + imCoeff * state.size * height / width * (state.flipYAxis ? 1 : -1),
+              re: dapCtx.toString(dapCtx.add(dapCtx.n(state.center.re), dapCtx.mul(dapCtx.n(reCoeff), sz))),
+              im: dapCtx.toString(dapCtx.add(dapCtx.n(state.center.im), dapCtx.mul(dapCtx.n(imCoeff * yFactor), sz))),
             },
-            size: state.size,
-          }
+          };
+        } else {
+          const cr = parseFloat(state.center.re), ci = parseFloat(state.center.im), sz = parseFloat(state.size);
+          return {
+            ...state,
+            center: {
+              re: String(cr + reCoeff * sz),
+              im: String(ci + imCoeff * sz * yFactor),
+            },
+          };
         }
       }
       case 'viewport/setClickZoomFactor':
         return { ...state, clickZoomFactor: payload };
-      case 'viewport/resetZoom':
+      case 'viewport/resetZoom': {
+        const dv = defaultViewportFor(payload.formulaKey, payload.params);
         return {
           ...state,
-          ...defaultViewportFor(payload.formulaKey, payload.params),
+          center: { re: String(dv.center.re), im: String(dv.center.im) },
+          size: String(dv.size),
         };
+      }
     }
     return state;
   },
@@ -315,7 +366,7 @@ const renderStatus = {
 
 export function needsArbitraryPrecision(viewport, engine) {
   const threshold = engine.processor === 'gpu' ? 1e-6 : 1e-13;
-  return viewport.size < threshold;
+  return parseFloat(viewport.size) < threshold;
 }
 
 export const store = createStore({

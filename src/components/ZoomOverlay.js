@@ -14,6 +14,6 @@ export function ZoomOverlay() {
 
   return () => {
     const { size } = store.getState().viewport;
-    return V('div', { class: 'info-chip' }, `Width: ${formatSize(size)}`);
+    return V('div', { class: 'info-chip' }, `Width: ${formatSize(parseFloat(size))}`);
   };
 }

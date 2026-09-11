@@ -1,5 +1,6 @@
 import { V, useState, bindStore } from '../lmnt.js';
 import { store } from '../store.js';
+import { dapCtx } from '../dap-ctx.js';
 
 function formatCoord(v, step) {
   const d = Math.min(16, Math.max(2, Math.ceil(-Math.log10(step)) + 2));
@@ -10,6 +11,16 @@ function formatCoord(v, step) {
     return v.toExponential(Math.min(14, Math.max(1, d + exp)));
   }
   return v.toFixed(d);
+}
+
+// Format a DAP coordinate string for display, trimming to the precision
+// warranted by the current step size (one pixel width in complex space).
+function formatDapStr(dapStr, step) {
+  if (dapStr === '0') return '0';
+  const d = Math.min(28, Math.max(3, Math.ceil(-Math.log10(Math.max(1e-30, step))) + 3));
+  const dot = dapStr.indexOf('.');
+  if (dot === -1) return dapStr;
+  return dapStr.slice(0, dot + 1 + d);
 }
 
 export function CoordOverlay() {
@@ -30,12 +41,36 @@ export function CoordOverlay() {
     const m = mouse.get();
     if (!m) return V('div', { style: 'display:none' });
     const { center, size, flipYAxis } = store.getState().viewport;
+    const { engine } = store.getState();
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const re = center.re + (m.px / w - 0.5) * size;
-    const im = center.im + (m.py / h - 0.5) * size * (h / w) * (flipYAxis ? 1 : -1);
-    const step = size / w;
-    const sign = im < 0 ? ' − ' : ' + ';
-    return V('div', { class: 'info-chip' }, `${formatCoord(re, step)}${sign}${formatCoord(Math.abs(im), step)}i`);
+
+    if (engine.useArbitraryPrecision) {
+      // High-precision coordinate display using DAP arithmetic
+      const cx = dapCtx.n(center.re);
+      const cy = dapCtx.n(center.im);
+      const sz = dapCtx.n(size);
+      const reOff = m.px / w - 0.5;
+      const imOff = (m.py / h - 0.5) * (h / w) * (flipYAxis ? 1 : -1);
+      const re = dapCtx.add(cx, dapCtx.mul(dapCtx.n(reOff), sz));
+      const im = dapCtx.add(cy, dapCtx.mul(dapCtx.n(imOff), sz));
+      const reStr = dapCtx.toString(re);
+      const imStr = dapCtx.toString(im);
+      const step = parseFloat(size) / w;
+      const sign = imStr.startsWith('-') ? ' − ' : ' + ';
+      return V('div', { class: 'info-chip' },
+        `${formatDapStr(reStr, step)}${sign}${formatDapStr(imStr.replace(/^-/, ''), step)}i`
+      );
+    } else {
+      // Float64 path
+      const cr = parseFloat(center.re);
+      const ci = parseFloat(center.im);
+      const sz = parseFloat(size);
+      const re = cr + (m.px / w - 0.5) * sz;
+      const im = ci + (m.py / h - 0.5) * sz * (h / w) * (flipYAxis ? 1 : -1);
+      const step = sz / w;
+      const sign = im < 0 ? ' − ' : ' + ';
+      return V('div', { class: 'info-chip' }, `${formatCoord(re, step)}${sign}${formatCoord(Math.abs(im), step)}i`);
+    }
   };
 }

@@ -8,14 +8,16 @@ import { CheckboxInput } from './CheckboxInput.js';
 
 export function ZoomSection({}) {
   bindStore(store, {
-    select: s => s.viewport,
+    select: s => ({ viewport: s.viewport, engine: s.engine }),
     shouldUpdate: (next, prev) =>
-      next.flipYAxis !== prev.flipYAxis ||
-      next.clickZoomFactor !== prev.clickZoomFactor,
+      next.viewport.flipYAxis !== prev.viewport.flipYAxis ||
+      next.viewport.clickZoomFactor !== prev.viewport.clickZoomFactor ||
+      next.engine.useArbitraryPrecision !== prev.engine.useArbitraryPrecision ||
+      next.engine.dapPrecision !== prev.engine.dapPrecision,
   });
 
   return () => {
-    const { viewport } = store.getState();
+    const { viewport, engine } = store.getState();
     return V(CollapsibleSection, { title: 'Zoom' },
       V(SelectInput, {
         label: 'Click zoom factor',
@@ -47,6 +49,31 @@ export function ZoomSection({}) {
         label: 'Flip y-axis',
         checked: viewport.flipYAxis,
         onChange: v => store.dispatch({ type: 'viewport/setFlipYAxis', payload: v }),
+      }),
+      V(CheckboxInput, {
+        label: 'Arbitrary precision (deep zoom)',
+        checked: engine.useArbitraryPrecision,
+        onChange: checked => {
+          store.dispatch({ type: 'engine/setArbitraryPrecision', payload: checked });
+          render(store.getState());
+        },
+      }),
+      engine.useArbitraryPrecision && V(SelectInput, {
+        label: 'DAP digits',
+        value: String(engine.dapPrecision),
+        options: [
+          { value: '16',  label: '16'  },
+          { value: '24',  label: '24'  },
+          { value: '32',  label: '32'  },
+          { value: '48',  label: '48'  },
+          { value: '64',  label: '64'  },
+          { value: '96',  label: '96'  },
+          { value: '128', label: '128' },
+        ],
+        onChange: v => {
+          store.dispatch({ type: 'engine/setDapPrecision', payload: Number(v) });
+          render(store.getState());
+        },
       }),
     );
   };

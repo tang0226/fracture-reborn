@@ -1,13 +1,22 @@
-// Generates JS iterator function from settings
-// The returned iterator receives pRe and pIm (the value of the point to be iterated). All other parameters are baked in
+// Generates iterator functions from settings.
+// Each returned iterator receives pRe and pIm (the point to iterate); all other
+// parameters are baked in.
 
-import { 
+import {
   iterStyleFragment,
   formulaFragment,
   orbitTrapFragment,
   smoothingFragment,
   trapSupportsSquare,
 } from './fragments/float64.js';
+
+import {
+  dapAbs,
+  dapGt,
+  dapIterStyleFragment,
+  dapFormulaFragment,
+  dapSmoothingFragment,
+} from './fragments/dap.js';
 
 
 export function createFloat64Iterator(settings) {
@@ -36,4 +45,50 @@ export function createFloat64Iterator(settings) {
   `;
 
   return new Function(src)();
+}
+
+// DAP version: mirrors createFloat64Iterator but operates on DapContext numbers.
+// pRe and pIm are DAP numbers. Throws for unsupported configurations so the
+// caller can fall back to float64.
+// zReSq/zImSq are carried forward between iterations (3 DAP muls/iter vs 5).
+export function createDAPIterator(settings, ctx) {
+  const { formula, iterStyle, expType, params } = settings.fractal;
+  const { maxIter, escapeRadius, smoothing } = settings.iteration;
+
+  // dapFormulaFragment (via dapZExpFragment) throws for unsupported configs —
+  // propagate to the caller so it can fall back to float64.
+  const src = `
+    return function iterate(pRe, pIm, buf, idx) {
+      ${dapIterStyleFragment({ iterStyle, params })}
+      let zReSq = ctx.mul(zRe, zRe);
+      let zImSq = ctx.mul(zIm, zIm);
+      let escaped = false, lastZSq = null, iter = 0;
+      while (iter < ${maxIter}) {
+        ${dapFormulaFragment({ formula, expType, params })}
+        zReSq = ctx.mul(zRe, zRe);
+        zImSq = ctx.mul(zIm, zIm);
+        const zSq = ctx.add(zReSq, zImSq);
+        if (dapGt(ctx, zSq, _escapeR2)) { lastZSq = zSq; escaped = true; break; }
+        iter++;
+      }
+      if (escaped) {
+        const zSqF = parseFloat(ctx.toString(lastZSq));
+        buf[idx] = ${dapSmoothingFragment({ smoothing })};
+      } else {
+        buf[idx] = ${maxIter};
+      }
+      buf[idx + 1] = Infinity;
+    }
+  `;
+
+  const _zero     = ctx.n(0);
+  const _two      = ctx.n(2);
+  const _three    = ctx.n(3);
+  const _escapeR2 = ctx.n(escapeRadius * escapeRadius);
+  const _juliaRe  = iterStyle === 'julia' ? ctx.n(params.jRe) : null;
+  const _juliaIm  = iterStyle === 'julia' ? ctx.n(params.jIm) : null;
+
+  return new Function('ctx', 'dapAbs', 'dapGt', '_zero', '_two', '_three', '_escapeR2', '_juliaRe', '_juliaIm', src)(
+    ctx, dapAbs, dapGt, _zero, _two, _three, _escapeR2, _juliaRe, _juliaIm,
+  );
 }

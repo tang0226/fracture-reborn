@@ -3,6 +3,10 @@ import { store } from '../store.js';
 import { render } from '../render.js';
 import { keys } from '../input.js';
 
+function getUseAP() {
+  return store.getState().engine.useArbitraryPrecision;
+}
+
 export function ControlsCanvas() {
   bindStore(store, { select: s => s.canvas });
 
@@ -37,6 +41,7 @@ export function ControlsCanvas() {
               2 * dx / width,
               2 * dy / height,
             ),
+            useAP: getUseAP(),
           }
         });
         render(store.getState());
@@ -49,6 +54,7 @@ export function ControlsCanvas() {
               width, height,
               reCoeff: e.offsetX / width - 0.5,
               imCoeff: e.offsetY / height - 0.5,
+              useAP: getUseAP(),
             },
           });
           render(store.getState());
@@ -60,6 +66,7 @@ export function ControlsCanvas() {
               width, height,
               reCoeff: e.offsetX / width - 0.5,
               imCoeff: e.offsetY / height - 0.5,
+              useAP: getUseAP(),
             },
           });
           render(store.getState());
@@ -71,6 +78,7 @@ export function ControlsCanvas() {
               width, height,
               reCoeff: e.offsetX / width - 0.5,
               imCoeff: e.offsetY / height - 0.5,
+              useAP: getUseAP(),
             },
           });
           render(store.getState());
