@@ -58,7 +58,7 @@ export function ZoomSection({}) {
           render(store.getState());
         },
       }),
-      engine.useArbitraryPrecision && V(SelectInput, {
+      engine.useArbitraryPrecision ? V(SelectInput, {
         label: 'DAP digits',
         value: String(engine.dapPrecision),
         options: [
@@ -74,7 +74,7 @@ export function ZoomSection({}) {
           store.dispatch({ type: 'engine/setDapPrecision', payload: Number(v) });
           render(store.getState());
         },
-      }),
+      }) : null,
     );
   };
 }
