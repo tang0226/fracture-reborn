@@ -18,6 +18,7 @@ let glProgram = null;
 let glProgramSrc = null;
 let glUniformCache = {};
 let glPaletteTexture = null;
+let glOtPaletteTexture = null;
 
 const VERT_SRC = `#version 300 es
 void main() {
@@ -54,7 +55,8 @@ function ensureGL(width, height) {
     if (!gl) throw new Error('WebGL2 not supported');
     glVao = gl.createVertexArray();
     gl.bindVertexArray(glVao);
-    glPaletteTexture = gl.createTexture();
+    glPaletteTexture   = gl.createTexture();
+    glOtPaletteTexture = gl.createTexture();
   } else if (glCanvas.width !== width || glCanvas.height !== height) {
     glCanvas.width  = width;
     glCanvas.height = height;
@@ -99,14 +101,25 @@ function renderGPU(settings) {
     gl.useProgram(glProgram);
     gl.viewport(0, 0, canvas.width, canvas.height);
 
-    // Upload palette texture
+    // Bake palette LUTs
     const coloringSettings = buildColoringSettings(coloring);
+
+    // TEXTURE0 — smooth-iter palette
     const lut = coloring.exterior.method === 'smoothIter'
       ? coloringSettings.exterior.smoothIter.lut
       : new Uint8ClampedArray(LUT_SIZE * 4).fill(255);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, glPaletteTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, LUT_SIZE, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, lut);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // TEXTURE1 — orbit trap palette
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, glOtPaletteTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, LUT_SIZE, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, coloringSettings.orbitTrap.lut);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -121,6 +134,7 @@ function renderGPU(settings) {
     gl.uniform1i(u('u_flipY'), viewport.flipYAxis ? 1 : 0);
     gl.uniform1i(u('u_aa'), render.antiAliasing || 1);
     gl.uniform1i(u('u_palette'), 0);
+    gl.uniform1i(u('u_otPalette'), 1);
 
     const { smoothIter } = coloring.exterior;
     gl.uniform1f(u('u_palPeriod'), smoothIter.period);
@@ -129,9 +143,18 @@ function renderGPU(settings) {
 
     const ic = coloring.interior.solid;
     gl.uniform3f(u('u_interiorColor'), ic.r / 255, ic.g / 255, ic.b / 255);
-    gl.uniform1i(u('u_exteriorMethod'), coloring.exterior.method === 'solid' ? 1 : 0);
+    gl.uniform1i(u('u_interiorMethod'), coloring.interior.method === 'orbitTrap' ? 1 : 0);
+
+    const extMethod = coloring.exterior.method === 'orbitTrap' ? 2
+                    : coloring.exterior.method === 'solid'     ? 1 : 0;
+    gl.uniform1i(u('u_exteriorMethod'), extMethod);
     const ec = coloring.exterior.solid;
     gl.uniform3f(u('u_exteriorSolid'), ec.r / 255, ec.g / 255, ec.b / 255);
+
+    const { orbitTrap } = coloring;
+    gl.uniform1f(u('u_otScale'),   orbitTrap.scale);
+    gl.uniform1f(u('u_otOffset'),  orbitTrap.offset);
+    gl.uniform1i(u('u_otLogScale'), orbitTrap.logScale ? 1 : 0);
 
     // Draw full-screen triangle
     gl.clear(gl.COLOR_BUFFER_BIT);
