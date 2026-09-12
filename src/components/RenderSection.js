@@ -1,5 +1,6 @@
 import { V, bindStore } from "../lmnt.js";
 import { store } from "../store.js";
+import { render } from "../render.js";
 
 import { CollapsibleSection } from './CollapsibleSection.js';
 import { Slider } from './Slider.js';
@@ -7,11 +8,28 @@ import { SelectInput } from './SelectInput.js';
 import { CheckboxInput } from './CheckboxInput.js';
 
 export function RenderSection({}) {
-  bindStore(store, { select: s => s.render });
+  bindStore(store, {
+    select: s => ({ render: s.render, processor: s.engine.processor }),
+    shouldUpdate: (next, prev) => next.render !== prev.render || next.processor !== prev.processor,
+  });
 
   return () => {
-    const { render: renderCfg } = store.getState();
+    const state = store.getState();
+    const renderCfg = state.render;
+    const processor = state.engine.processor;
     return V(CollapsibleSection, { title: 'Render' },
+      V(SelectInput, {
+        label: 'Processor',
+        value: processor,
+        options: [
+          { value: 'cpu', label: 'CPU' },
+          { value: 'gpu', label: 'GPU (float32)' },
+        ],
+        onChange: v => {
+          store.dispatch({ type: 'engine/setProcessor', payload: v });
+          render(store.getState());
+        },
+      }),
       V(Slider, {
         label: 'Workers',
         value: renderCfg.workerCount,

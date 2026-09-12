@@ -1,6 +1,6 @@
 import { V, useEffect, useStyle, bindStore } from '../lmnt.js';
 import { store } from '../store.js';
-import { colorizeWorker } from '../render.js';
+import { colorizeWorker, setCanvasRef } from '../render.js';
 
 export function RenderCanvas() {
 
@@ -10,6 +10,7 @@ export function RenderCanvas() {
   useEffect((self) => {
     ctx = self.el.getContext('2d');
     ctx.imageSmoothingEnabled = false;
+    setCanvasRef(self.el);
     offscreen = new OffscreenCanvas(store.getState().render.tileSize, store.getState().render.tileSize);
     offCtx = offscreen.getContext('2d');
   });

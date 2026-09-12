@@ -1,9 +1,156 @@
 import { needsArbitraryPrecision } from './store.js';
 import { store } from './store.js';
-import { buildColoringSettings } from './coloring.js';
+import { buildColoringSettings, LUT_SIZE } from './coloring.js';
+import { buildFragmentShader } from './kernel/shader.js';
 
 export const colorizeWorker = new Worker(new URL('./workers/colorize.worker.js', import.meta.url), { type: 'module' });
 const workerPool = [];
+
+// ─── GPU state ───────────────────────────────────────────────────────────────
+
+let mainCanvas = null;
+export function setCanvasRef(el) { mainCanvas = el; }
+
+let glCanvas = null;
+let gl = null;
+let glVao = null;
+let glProgram = null;
+let glProgramSrc = null;
+let glUniformCache = {};
+let glPaletteTexture = null;
+
+const VERT_SRC = `#version 300 es
+void main() {
+  // Full-screen triangle via gl_VertexID bit trick (covers NDC [-1,1]² with 3 vertices)
+  vec2 uv = vec2(float(gl_VertexID & 1), float((gl_VertexID >> 1) & 1));
+  gl_Position = vec4(uv * 4.0 - 1.0, 0.0, 1.0);
+}`;
+
+function compileShader(type, src) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, src);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    throw new Error(`Shader compile error:\n${gl.getShaderInfoLog(shader)}`);
+  }
+  return shader;
+}
+
+function linkProgram(fragSrc) {
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, VERT_SRC));
+  gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fragSrc));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    throw new Error(`Program link error:\n${gl.getProgramInfoLog(prog)}`);
+  }
+  return prog;
+}
+
+function ensureGL(width, height) {
+  if (!glCanvas) {
+    glCanvas = new OffscreenCanvas(width, height);
+    gl = glCanvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 not supported');
+    glVao = gl.createVertexArray();
+    gl.bindVertexArray(glVao);
+    glPaletteTexture = gl.createTexture();
+  } else if (glCanvas.width !== width || glCanvas.height !== height) {
+    glCanvas.width  = width;
+    glCanvas.height = height;
+  }
+}
+
+function u(name) {
+  if (!(name in glUniformCache)) glUniformCache[name] = gl.getUniformLocation(glProgram, name);
+  return glUniformCache[name];
+}
+
+function renderGPU(settings) {
+  if (!mainCanvas) {
+    console.warn('[renderGPU] canvas not ready, falling back to CPU');
+    renderCPU(settings, renderID);
+    return;
+  }
+
+  let fragSrc;
+  try {
+    fragSrc = buildFragmentShader(settings);
+  } catch (err) {
+    console.warn(`[renderGPU] shader build failed (${err.message}); falling back to CPU`);
+    renderCPU(settings, renderID);
+    return;
+  }
+
+  const startTime = performance.now();
+  store.dispatch({ type: 'renderStatus/start', payload: { tilesTotal: 1 } });
+
+  try {
+    const { canvas, viewport, iteration, coloring, render } = settings;
+    ensureGL(canvas.width, canvas.height);
+
+    if (fragSrc !== glProgramSrc) {
+      if (glProgram) gl.deleteProgram(glProgram);
+      glProgram    = linkProgram(fragSrc);
+      glProgramSrc = fragSrc;
+      glUniformCache = {};
+    }
+
+    gl.useProgram(glProgram);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    // Upload palette texture
+    const coloringSettings = buildColoringSettings(coloring);
+    const lut = coloring.exterior.method === 'smoothIter'
+      ? coloringSettings.exterior.smoothIter.lut
+      : new Uint8ClampedArray(LUT_SIZE * 4).fill(255);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, glPaletteTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, LUT_SIZE, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, lut);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // Uniforms
+    gl.uniform2f(u('u_resolution'), canvas.width, canvas.height);
+    gl.uniform2f(u('u_center'), parseFloat(viewport.center.re), parseFloat(viewport.center.im));
+    gl.uniform1f(u('u_size'), parseFloat(viewport.size));
+    gl.uniform1i(u('u_maxIter'), iteration.maxIter);
+    gl.uniform1f(u('u_escapeR2'), iteration.escapeRadius * iteration.escapeRadius);
+    gl.uniform1i(u('u_flipY'), viewport.flipYAxis ? 1 : 0);
+    gl.uniform1i(u('u_aa'), render.antiAliasing || 1);
+    gl.uniform1i(u('u_palette'), 0);
+
+    const { smoothIter } = coloring.exterior;
+    gl.uniform1f(u('u_palPeriod'), smoothIter.period);
+    gl.uniform1f(u('u_palOffset'), smoothIter.offset);
+    gl.uniform1i(u('u_palLogScale'), smoothIter.logScale ? 1 : 0);
+
+    const ic = coloring.interior.solid;
+    gl.uniform3f(u('u_interiorColor'), ic.r / 255, ic.g / 255, ic.b / 255);
+    gl.uniform1i(u('u_exteriorMethod'), coloring.exterior.method === 'solid' ? 1 : 0);
+    const ec = coloring.exterior.solid;
+    gl.uniform3f(u('u_exteriorSolid'), ec.r / 255, ec.g / 255, ec.b / 255);
+
+    // Draw full-screen triangle
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.flush();
+
+    // Composite to the 2D canvas
+    mainCanvas.getContext('2d').drawImage(glCanvas, 0, 0);
+
+  } catch (err) {
+    console.error('[renderGPU] error, falling back to CPU:', err);
+    renderCPU(settings, renderID);
+    return;
+  }
+
+  const elapsed = performance.now() - startTime;
+  store.dispatch({ type: 'renderStatus/tileDone', payload: { elapsed } });
+  store.dispatch({ type: 'renderStatus/done',     payload: { elapsed } });
+}
 
 // Broadcast a message to every worker in the pool (e.g. settings updates).
 function postAll(msg) {
@@ -116,7 +263,7 @@ export function render(settings) {
   }
 
   if (settings.engine.processor === 'gpu') {
-    // renderGPU
+    renderGPU(settings);
   } else {
     renderCPU(settings, renderID);
   }
