@@ -1,12 +1,17 @@
-another rebirth of fracture
+## Fracture Reborn - a fully browser-based fractal viewer
 
+### Features:
+- Mandelbrot, Burning Ship, and Tricorn fractals
+- variable exponent
+- customizable and preset palettes
+- orbit traps
+- arbitrary precision
+- anti-aliasing
+- image export
 
-arbitrary precision
-
-perturbation theory
-
-custom formulas
-
-gpu acceleration
-
-new UI
+#### Planned features:
+- perturbation theory
+- GPU acceleration
+- custom formulas
+- animation
+- video export
