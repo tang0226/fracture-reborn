@@ -4,7 +4,8 @@ import { render } from '../render.js';
 import { keys } from '../input.js';
 
 function getUseAP() {
-  return store.getState().engine.useArbitraryPrecision;
+  const { engine } = store.getState();
+  return engine.useArbitraryPrecision || engine.useDoubleDouble;
 }
 
 export function ControlsCanvas() {

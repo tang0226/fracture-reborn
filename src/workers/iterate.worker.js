@@ -1,4 +1,5 @@
-import { createFloat64Iterator, createDAPIterator } from '../kernel/iterator.js';
+import { createFloat64Iterator, createDAPIterator, createDoubleDoubleIterator } from '../kernel/iterator.js';
+import { ddAdd, ddMul } from '../kernel/fragments/doubleDouble.js';
 import { DapContext } from '../dap/dap-context.js';
 
 let settings, iterateTile,
@@ -23,10 +24,14 @@ self.onmessage = (e) => {
         iteration,
       } = settings);
 
-      if (engine.processor === 'cpu' && !engine.useArbitraryPrecision) {
-        iterateTile = setupFloat64(settings);
-      } else {
-        iterateTile = setupDAP(settings);
+      if (engine.processor === 'cpu') {
+        if (engine.useArbitraryPrecision) {
+          iterateTile = setupDAP(settings);
+        } else if (engine.useDoubleDouble) {
+          iterateTile = setupDoubleDouble(settings);
+        } else {
+          iterateTile = setupFloat64(settings);
+        }
       }
       break;
     }
@@ -75,6 +80,84 @@ function setupFloat64(settings) {
         );
         i += 2;
       }
+    }
+
+    return { buf, tile };
+  };
+}
+
+// Sets up worker output buffer and iterateTile function using double-double arithmetic.
+// Viewport coordinates are parsed via DapContext then converted to DD pairs [hi, lo].
+// Falls back to float64 when the kernel does not support the current configuration.
+function setupDoubleDouble(settings) {
+  try {
+    return _setupDoubleDouble(settings);
+  } catch (err) {
+    console.warn(`[iterate.worker] DD kernel unavailable (${err.message}); falling back to float64`);
+    return setupFloat64(settings);
+  }
+}
+
+function _setupDoubleDouble(settings) {
+  const { canvas, render, viewport } = settings;
+
+  const ctx = new DapContext(settings.engine.dapPrecision ?? 32);
+
+  let iterate;
+  try {
+    iterate = createDoubleDoubleIterator(settings);
+  } catch (err) {
+    console.warn(`[iterate.worker] DD kernel unavailable (${err.message}); falling back to float64`);
+    return setupFloat64(settings);
+  }
+
+  // Convert a high-precision decimal string to a [hi, lo] DD pair.
+  // hi = best float64; lo = remainder computed via DAP.
+  function toDD(str) {
+    const hi = parseFloat(str);
+    const lo = parseFloat(ctx.toString(ctx.sub(ctx.n(str), ctx.n(String(hi)))));
+    return [hi, lo];
+  }
+
+  const [centerReHi, centerReLo] = toDD(viewport.center.re);
+  const [centerImHi, centerImLo] = toDD(viewport.center.im);
+  const sizeDAP = ctx.n(viewport.size);
+
+  let buf = new Float64Array();
+
+  return function iterateTile(tile) {
+    const { stride } = tile;
+    const imgDataW = Math.ceil(canvas.width  / stride) * ((stride === 1 && render.antiAliasing) ? render.antiAliasing : 1);
+    const imgDataH = Math.ceil(canvas.height / stride) * ((stride === 1 && render.antiAliasing) ? render.antiAliasing : 1);
+
+    const yDir = viewport.flipYAxis ? 1 : -1;
+    const l = tile.w * tile.h * 2;
+    if (buf.length !== l) buf = new Float64Array(l);
+
+    // pxSize as DD, computed via DAP (two DAP ops per tile, not per pixel)
+    const [pxSizeHi, pxSizeLo] = toDD(ctx.toString(ctx.div(sizeDAP, ctx.n(imgDataW))));
+    const pxSizeImHi = yDir * pxSizeHi;
+    const pxSizeImLo = yDir * pxSizeLo;
+
+    const halfW = imgDataW / 2;
+    const halfH = imgDataH / 2;
+
+    // Start coordinates for the tile's top-left pixel using DD arithmetic
+    let [rowReHi, rowReLo] = ddAdd(centerReHi, centerReLo, ...ddMul(tile.x - halfW, 0, pxSizeHi, pxSizeLo));
+    let [rowImHi, rowImLo] = ddAdd(centerImHi, centerImLo, ...ddMul(yDir * (tile.y - halfH), 0, pxSizeHi, pxSizeLo));
+
+    let bufIdx = 0;
+
+    for (let y = tile.y; y < tile.y + tile.h; y++) {
+      let pReHi = rowReHi, pReLo = rowReLo;
+
+      for (let x = tile.x; x < tile.x + tile.w; x++) {
+        iterate(pReHi, pReLo, rowImHi, rowImLo, buf, bufIdx);
+        [pReHi, pReLo] = ddAdd(pReHi, pReLo, pxSizeHi, pxSizeLo);
+        bufIdx += 2;
+      }
+
+      [rowImHi, rowImLo] = ddAdd(rowImHi, rowImLo, pxSizeImHi, pxSizeImLo);
     }
 
     return { buf, tile };

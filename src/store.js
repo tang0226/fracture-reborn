@@ -10,6 +10,7 @@ import { dapCtx, setDapPrecision } from './dap-ctx.js';
 const engine = {
   state: {
     processor: 'cpu',
+    useDoubleDouble: false,
     useArbitraryPrecision: false,
     usePerturbation: false,
     dapPrecision: 32,
@@ -20,6 +21,8 @@ const engine = {
       case 'engine/setProcessor':
         if (payload !== 'cpu' && payload !== 'gpu') throw new Error('Invalid processor type');
         return { ...state, processor: payload };
+      case 'engine/setDoubleDouble':
+        return { ...state, useDoubleDouble: payload };
       case 'engine/setArbitraryPrecision':
         return { ...state, useArbitraryPrecision: payload };
       case 'engine/setPerturbation':

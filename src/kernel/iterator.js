@@ -18,6 +18,18 @@ import {
   dapSmoothingFragment,
 } from './fragments/dap.js';
 
+import {
+  ddAdd,
+  ddSub,
+  ddMul,
+  ddAbs,
+  ddGt,
+  ddIterStyleFragment,
+  ddFormulaFragment,
+  ddOrbitTrapFragment,
+  ddSmoothingFragment,
+} from './fragments/doubleDouble.js';
+
 
 export function createFloat64Iterator(settings) {
   const { formula, iterStyle, expType, params } = settings.fractal;
@@ -45,6 +57,39 @@ export function createFloat64Iterator(settings) {
   `;
 
   return new Function(src)();
+}
+
+// Double-double version: two float64s per coordinate for ~31 significant digits.
+// pRe/pIm are passed as DD pairs (pReHi, pReLo, pImHi, pImLo).
+// Throws for unsupported expType so the caller can fall back to float64.
+export function createDoubleDoubleIterator(settings) {
+  const { formula, iterStyle, expType, params } = settings.fractal;
+  const { maxIter, escapeRadius, smoothing, orbitTraps } = settings.iteration;
+
+  const allTrapsSquare = orbitTraps.every(t => trapSupportsSquare[t.type]);
+
+  const src = `
+    return function iterate(pReHi, pReLo, pImHi, pImLo, buf, idx) {
+      ${ddIterStyleFragment({ iterStyle, params })}
+      let ot = Infinity;
+      let _otDist;
+      for (let i = 0; i < ${maxIter}; i++) {
+        ${ddFormulaFragment({ formula, expType, params })}
+        ${ddOrbitTrapFragment({ orbitTraps, allTrapsSquare })}
+        if (zReHi*zReHi + zImHi*zImHi > ${escapeRadius ** 2}) {
+          buf[idx] = ${ddSmoothingFragment({ smoothing, expType, params, maxIter })};
+          buf[idx+1] = ${allTrapsSquare ? `Math.sqrt(ot)` : `ot`};
+          return;
+        }
+      }
+      buf[idx] = ${maxIter};
+      buf[idx+1] = ${allTrapsSquare ? `Math.sqrt(ot)` : `ot`};
+    }
+  `;
+
+  return new Function('ddAdd', 'ddSub', 'ddMul', 'ddAbs', 'ddGt', src)(
+    ddAdd, ddSub, ddMul, ddAbs, ddGt,
+  );
 }
 
 // DAP version: mirrors createFloat64Iterator but operates on DapContext numbers.

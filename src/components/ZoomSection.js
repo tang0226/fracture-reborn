@@ -12,6 +12,8 @@ export function ZoomSection({}) {
     shouldUpdate: (next, prev) =>
       next.viewport.flipYAxis !== prev.viewport.flipYAxis ||
       next.viewport.clickZoomFactor !== prev.viewport.clickZoomFactor ||
+      next.engine.processor !== prev.engine.processor ||
+      next.engine.useDoubleDouble !== prev.engine.useDoubleDouble ||
       next.engine.useArbitraryPrecision !== prev.engine.useArbitraryPrecision ||
       next.engine.dapPrecision !== prev.engine.dapPrecision,
   });
@@ -50,6 +52,14 @@ export function ZoomSection({}) {
         checked: viewport.flipYAxis,
         onChange: v => store.dispatch({ type: 'viewport/setFlipYAxis', payload: v }),
       }),
+      engine.processor === 'cpu' && !engine.useArbitraryPrecision ? V(CheckboxInput, {
+        label: 'Double precision (deep zoom)',
+        checked: engine.useDoubleDouble,
+        onChange: checked => {
+          store.dispatch({ type: 'engine/setDoubleDouble', payload: checked });
+          render(store.getState());
+        },
+      }) : null,
       V(CheckboxInput, {
         label: 'Arbitrary precision (deep zoom)',
         checked: engine.useArbitraryPrecision,
