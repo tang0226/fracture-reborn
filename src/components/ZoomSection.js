@@ -52,22 +52,20 @@ export function ZoomSection({}) {
         checked: viewport.flipYAxis,
         onChange: v => store.dispatch({ type: 'viewport/setFlipYAxis', payload: v }),
       }),
-      engine.processor === 'cpu' && !engine.useArbitraryPrecision ? V(CheckboxInput, {
-        label: 'Double precision (deep zoom)',
-        checked: engine.useDoubleDouble,
-        onChange: checked => {
-          store.dispatch({ type: 'engine/setDoubleDouble', payload: checked });
+      engine.processor === 'cpu' ? V(SelectInput, {
+        label: 'Precision',
+        value: engine.useArbitraryPrecision ? 'dap' : engine.useDoubleDouble ? 'dd' : 'float64',
+        options: [
+          { value: 'float64', label: 'Float64 (~1e-13)' },
+          { value: 'dd',      label: 'Double-double (~1e-27)' },
+          { value: 'dap',     label: 'Arbitrary precision' },
+        ],
+        onChange: v => {
+          store.dispatch({ type: 'engine/setDoubleDouble', payload: v === 'dd' });
+          store.dispatch({ type: 'engine/setArbitraryPrecision', payload: v === 'dap' });
           render(store.getState());
         },
       }) : null,
-      V(CheckboxInput, {
-        label: 'Arbitrary precision (deep zoom)',
-        checked: engine.useArbitraryPrecision,
-        onChange: checked => {
-          store.dispatch({ type: 'engine/setArbitraryPrecision', payload: checked });
-          render(store.getState());
-        },
-      }),
       engine.useArbitraryPrecision ? V(SelectInput, {
         label: 'DAP digits',
         value: String(engine.dapPrecision),
