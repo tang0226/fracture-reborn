@@ -52,20 +52,25 @@ export function ZoomSection({}) {
         checked: viewport.flipYAxis,
         onChange: v => store.dispatch({ type: 'viewport/setFlipYAxis', payload: v }),
       }),
-      engine.processor === 'cpu' ? V(SelectInput, {
+      V(SelectInput, {
         label: 'Precision',
-        value: engine.useArbitraryPrecision ? 'dap' : engine.useDoubleDouble ? 'dd' : 'float64',
-        options: [
-          { value: 'float64', label: 'Float64 (~1e-13)' },
-          { value: 'dd',      label: 'Double-double (~1e-27)' },
-          { value: 'dap',     label: 'Arbitrary precision' },
-        ],
+        value: engine.processor === 'gpu' ? 'float32'
+          : engine.useArbitraryPrecision ? 'dap'
+          : engine.useDoubleDouble ? 'dd'
+          : 'float64',
+        options: engine.processor === 'gpu'
+          ? [{ value: 'float32', label: 'float32 (~1e-6)' }]
+          : [
+              { value: 'float64', label: 'float64 (~1e-13)' },
+              { value: 'dd',      label: 'double-double (~1e-27)' },
+              { value: 'dap',     label: 'Arbitrary precision' },
+            ],
         onChange: v => {
           store.dispatch({ type: 'engine/setDoubleDouble', payload: v === 'dd' });
           store.dispatch({ type: 'engine/setArbitraryPrecision', payload: v === 'dap' });
           render(store.getState());
         },
-      }) : null,
+      }),
       engine.useArbitraryPrecision ? V(SelectInput, {
         label: 'DAP digits',
         value: String(engine.dapPrecision),
