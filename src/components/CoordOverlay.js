@@ -15,9 +15,10 @@ function formatCoord(v, step) {
 
 // Format a DAP coordinate string for display, trimming to the precision
 // warranted by the current step size (one pixel width in complex space).
-function formatDapStr(dapStr, step) {
+// maxD caps total decimal places shown (use dapPrecision to match stored precision).
+function formatDapStr(dapStr, step, maxD) {
   if (dapStr === '0') return '0';
-  const d = Math.min(28, Math.max(3, Math.ceil(-Math.log10(Math.max(1e-30, step))) + 3));
+  const d = Math.min(maxD, Math.max(3, Math.ceil(-Math.log10(Math.max(1e-300, step))) + 3));
   const dot = dapStr.indexOf('.');
   if (dot === -1) return dapStr;
   return dapStr.slice(0, dot + 1 + d);
@@ -27,8 +28,13 @@ export function CoordOverlay() {
   const mouse = useState(null); // { px, py } in window pixels
 
   bindStore(store, {
-    select: s => s.viewport,
-    shouldUpdate: (n, p) => n.center !== p.center || n.size !== p.size || n.flipYAxis !== p.flipYAxis,
+    select: s => ({ viewport: s.viewport, engine: s.engine }),
+    shouldUpdate: (n, p) =>
+      n.viewport.center !== p.viewport.center ||
+      n.viewport.size !== p.viewport.size ||
+      n.viewport.flipYAxis !== p.viewport.flipYAxis ||
+      n.engine.useArbitraryPrecision !== p.engine.useArbitraryPrecision ||
+      n.engine.useDoubleDouble !== p.engine.useDoubleDouble,
   });
 
   window.addEventListener('mousemove', (e) => {
@@ -45,8 +51,10 @@ export function CoordOverlay() {
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    if (engine.useArbitraryPrecision) {
-      // High-precision coordinate display using DAP arithmetic
+    if (engine.useArbitraryPrecision || engine.useDoubleDouble) {
+      // High-precision coordinate display using DAP arithmetic.
+      // Also used for DD mode: center strings have 30+ digit precision because
+      // ControlsCanvas.getUseAP() returns true for DD mode during zoom.
       const cx = dapCtx.n(center.re);
       const cy = dapCtx.n(center.im);
       const sz = dapCtx.n(size);
@@ -57,9 +65,10 @@ export function CoordOverlay() {
       const reStr = dapCtx.toString(re);
       const imStr = dapCtx.toString(im);
       const step = parseFloat(size) / w;
+      const maxD = engine.dapPrecision;
       const sign = imStr.startsWith('-') ? ' − ' : ' + ';
       return V('div', { class: 'info-chip' },
-        `${formatDapStr(reStr, step)}${sign}${formatDapStr(imStr.replace(/^-/, ''), step)}i`
+        `${formatDapStr(reStr, step, maxD)}${sign}${formatDapStr(imStr.replace(/^-/, ''), step, maxD)}i`
       );
     } else {
       // Float64 path
