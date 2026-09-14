@@ -8,7 +8,7 @@ import {
   orbitTrapFragment,
   smoothingFragment,
   trapSupportsSquare,
-} from './fragments/float64.js';
+} from './fragments/cpu/float64.js';
 
 import {
   dapAbs,
@@ -16,7 +16,7 @@ import {
   dapIterStyleFragment,
   dapFormulaFragment,
   dapSmoothingFragment,
-} from './fragments/dap.js';
+} from './fragments/cpu/dap.js';
 
 import {
   ddAdd,
@@ -28,7 +28,7 @@ import {
   ddFormulaFragment,
   ddOrbitTrapFragment,
   ddSmoothingFragment,
-} from './fragments/doubleDouble.js';
+} from './fragments/cpu/doubleDouble.js';
 
 
 export function createFloat64Iterator(settings) {

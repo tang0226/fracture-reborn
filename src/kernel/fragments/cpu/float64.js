@@ -1,6 +1,6 @@
 // Fragment generators for float64 JS kernels
 
-import { wrapIf } from "../utils.js";
+import { wrapIf } from "../../utils.js";
 
 export function iterStyleFragment({ iterStyle, params }) {
   switch (iterStyle) {
@@ -81,7 +81,6 @@ export function orbitTrapFragment({ orbitTraps, allTrapsSquare }) {
         `;
         break;
       case 'circle':
-        // Distance from the circle edge: |dist_from_center − radius|
         res += `
           _otDist = Math.abs(Math.sqrt((zRe - ${trap.re}) ** 2 + (zIm - ${trap.im}) ** 2) - ${trap.radius});
           if (_otDist < ot) ot = _otDist;

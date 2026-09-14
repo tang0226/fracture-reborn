@@ -7,11 +7,13 @@ import { createStore } from './lmnt.js';
 import { palettes } from './palettes.js';
 import { dapCtx, setDapPrecision } from './dap-ctx.js';
 
+// Precision values by processor:
+//   CPU: 'float64' | 'dd' (double-double) | 'dap' (arbitrary precision)
+//   GPU: 'float32' | 'df' (double-float)
 const engine = {
   state: {
     processor: 'cpu',
-    useDoubleDouble: false,
-    useArbitraryPrecision: false,
+    precision: 'float64',
     usePerturbation: false,
     dapPrecision: 32,
   },
@@ -20,11 +22,9 @@ const engine = {
     switch (type) {
       case 'engine/setProcessor':
         if (payload !== 'cpu' && payload !== 'gpu') throw new Error('Invalid processor type');
-        return { ...state, processor: payload };
-      case 'engine/setDoubleDouble':
-        return { ...state, useDoubleDouble: payload };
-      case 'engine/setArbitraryPrecision':
-        return { ...state, useArbitraryPrecision: payload };
+        return { ...state, processor: payload, precision: payload === 'gpu' ? 'float32' : 'float64' };
+      case 'engine/setPrecision':
+        return { ...state, precision: payload };
       case 'engine/setPerturbation':
         return { ...state, usePerturbation: payload };
       case 'engine/setDapPrecision':
@@ -368,7 +368,8 @@ const renderStatus = {
 };
 
 export function needsArbitraryPrecision(viewport, engine) {
-  const threshold = engine.processor === 'gpu' ? 1e-6 : 1e-13;
+  // Depth at which the active precision runs out: float32 ~1e-6, double-float ~1e-13.
+  const threshold = engine.processor === 'gpu' && engine.precision !== 'df' ? 1e-6 : 1e-13;
   return parseFloat(viewport.size) < threshold;
 }
 

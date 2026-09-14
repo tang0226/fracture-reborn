@@ -5,7 +5,9 @@ import { keys } from '../input.js';
 
 function getUseAP() {
   const { engine } = store.getState();
-  return engine.useArbitraryPrecision || engine.useDoubleDouble;
+  // GPU float32 DD is ~14-digit precision; float64 viewport strings are sufficient.
+  if (engine.processor === 'gpu') return false;
+  return engine.precision === 'dap' || engine.precision === 'dd';
 }
 
 export function ControlsCanvas() {

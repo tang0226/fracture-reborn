@@ -1,7 +1,14 @@
 import { needsArbitraryPrecision } from './store.js';
 import { store } from './store.js';
 import { buildColoringSettings, LUT_SIZE } from './coloring.js';
-import { buildFragmentShader } from './kernel/shader.js';
+import { buildFragmentShader, buildDFFragmentShader } from './kernel/shader.js';
+
+// Splits a float64 into two float32s whose sum reproduces it to ~48 mantissa bits.
+// hi is the correctly rounded float32 head; x - hi is exact in float64 (Sterbenz).
+function toF32Pair(x) {
+  const hi = Math.fround(x);
+  return [hi, Math.fround(x - hi)];
+}
 
 export const colorizeWorker = new Worker(new URL('./workers/colorize.worker.js', import.meta.url), { type: 'module' });
 const workerPool = [];
@@ -31,9 +38,11 @@ function compileShader(type, src) {
   const shader = gl.createShader(type);
   gl.shaderSource(shader, src);
   gl.compileShader(shader);
+  const log = gl.getShaderInfoLog(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(`Shader compile error:\n${gl.getShaderInfoLog(shader)}`);
+    throw new Error(`Shader compile error:\n${log}`);
   }
+  if (log && log.trim()) console.warn('[shader] compile log:', log);
   return shader;
 }
 
@@ -75,9 +84,11 @@ function renderGPU(settings) {
     return;
   }
 
+  const useDF = settings.engine.precision === 'df';
+
   let fragSrc;
   try {
-    fragSrc = buildFragmentShader(settings);
+    fragSrc = useDF ? buildDFFragmentShader(settings) : buildFragmentShader(settings);
   } catch (err) {
     console.warn(`[renderGPU] shader build failed (${err.message}); falling back to CPU`);
     renderCPU(settings, renderID);
@@ -127,8 +138,19 @@ function renderGPU(settings) {
 
     // Uniforms
     gl.uniform2f(u('u_resolution'), canvas.width, canvas.height);
-    gl.uniform2f(u('u_center'), parseFloat(viewport.center.re), parseFloat(viewport.center.im));
-    gl.uniform1f(u('u_size'), parseFloat(viewport.size));
+    if (useDF) {
+      // Center and size arrive as hi/lo float32 pairs; the shader composes pixel
+      // coordinates from them with df_add/df_mul rather than in plain float32.
+      const [reHi, reLo] = toF32Pair(parseFloat(viewport.center.re));
+      const [imHi, imLo] = toF32Pair(parseFloat(viewport.center.im));
+      const [szHi, szLo] = toF32Pair(parseFloat(viewport.size));
+      gl.uniform4f(u('u_center_df'), reHi, reLo, imHi, imLo);
+      gl.uniform2f(u('u_size_df'), szHi, szLo);
+      gl.uniform1f(u('u_dfOne'), 1.0);  // must be exactly 1.0 — see df_opaque in doubleFloat.js
+    } else {
+      gl.uniform2f(u('u_center'), parseFloat(viewport.center.re), parseFloat(viewport.center.im));
+      gl.uniform1f(u('u_size'), parseFloat(viewport.size));
+    }
     gl.uniform1i(u('u_maxIter'), iteration.maxIter);
     gl.uniform1f(u('u_escapeR2'), iteration.escapeRadius * iteration.escapeRadius);
     gl.uniform1i(u('u_flipY'), viewport.flipYAxis ? 1 : 0);

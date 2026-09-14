@@ -1,5 +1,5 @@
 // Fragment generators for DAP (arbitrary-precision) kernels.
-// Parallel to fragments/float64.js: each function returns a JS code string
+// Parallel to fragments/cpu/float64.js: each function returns a JS code string
 // assembled into a dynamically-created iterate function via new Function().
 //
 // DAP constants (_zero, _two, _three, _escapeR2, _juliaRe, _juliaIm) and

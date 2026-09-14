@@ -33,8 +33,7 @@ export function CoordOverlay() {
       n.viewport.center !== p.viewport.center ||
       n.viewport.size !== p.viewport.size ||
       n.viewport.flipYAxis !== p.viewport.flipYAxis ||
-      n.engine.useArbitraryPrecision !== p.engine.useArbitraryPrecision ||
-      n.engine.useDoubleDouble !== p.engine.useDoubleDouble,
+      n.engine.precision !== p.engine.precision,
   });
 
   window.addEventListener('mousemove', (e) => {
@@ -51,7 +50,7 @@ export function CoordOverlay() {
     const w = window.innerWidth;
     const h = window.innerHeight;
 
-    if (engine.useArbitraryPrecision || engine.useDoubleDouble) {
+    if (engine.precision === 'dap' || engine.precision === 'dd') {
       // High-precision coordinate display using DAP arithmetic.
       // Also used for DD mode: center strings have 30+ digit precision because
       // ControlsCanvas.getUseAP() returns true for DD mode during zoom.

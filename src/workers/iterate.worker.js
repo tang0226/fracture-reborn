@@ -1,5 +1,5 @@
 import { createFloat64Iterator, createDAPIterator, createDoubleDoubleIterator } from '../kernel/iterator.js';
-import { ddAdd, ddMul } from '../kernel/fragments/doubleDouble.js';
+import { ddAdd, ddMul } from '../kernel/fragments/cpu/doubleDouble.js';
 import { DapContext } from '../dap/dap-context.js';
 
 let settings, iterateTile,
@@ -25,9 +25,9 @@ self.onmessage = (e) => {
       } = settings);
 
       if (engine.processor === 'cpu') {
-        if (engine.useArbitraryPrecision) {
+        if (engine.precision === 'dap') {
           iterateTile = setupDAP(settings);
-        } else if (engine.useDoubleDouble) {
+        } else if (engine.precision === 'dd') {
           iterateTile = setupDoubleDouble(settings);
         } else {
           iterateTile = setupFloat64(settings);
