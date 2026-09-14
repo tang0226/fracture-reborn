@@ -6,12 +6,12 @@
 - customizable and preset palettes
 - orbit traps
 - arbitrary precision
+- GPU acceleration
 - anti-aliasing
 - image export
 
 #### Planned features:
 - perturbation theory
-- GPU acceleration
 - custom formulas
 - animation
 - video export
